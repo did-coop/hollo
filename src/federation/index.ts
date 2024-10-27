@@ -119,11 +119,8 @@ if (getRedisUrl() == null) {
 }
 
 export const federation = createFederation<void>({
-  kv: new PostgresKvStore(postgres),
-  queue: new ParallelMessageQueue(new PostgresMessageQueue(postgres), 10),
-  userAgent: {
-    software: `Hollo/${metadata.version}`,
-  },
+  kv,
+  queue,
   // biome-ignore lint/complexity/useLiteralKeys: tsc complains about this (TS4111)
   allowPrivateAddress: process.env["ALLOW_PRIVATE_ADDRESS"] === "true",
 });
