@@ -2,7 +2,7 @@
 
 ## Version 0.4.0
 
-To be released.
+Released on October 27, 2024.
 
 - Now you can import and export your data from the administration dashboard
   in CSV format: follows, lists, accounts you muted, accounts you blocked,
