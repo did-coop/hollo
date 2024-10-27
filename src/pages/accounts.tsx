@@ -10,6 +10,7 @@ import {
   generateCryptoKeyPair,
   getActorHandle,
   isActor,
+  type Recipient,
 } from "@fedify/fedify";
 import { getLogger } from "@logtape/logtape";
 import { PromisePool } from "@supercharge/promise-pool";
