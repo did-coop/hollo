@@ -47,6 +47,7 @@ export function Layout(props: PropsWithChildren<LayoutProps>) {
           sizes="500x500"
           href="/public/favicon.png"
         />
+        <link rel="icon" type="image/png" sizes="500x500" href="/favicon.png" />
       </head>
       <body>
         <main className="container">{props.children}</main>

@@ -132,6 +132,8 @@ Released on November 3, 2024.
 - Added `PORT` and `ALLOW_PRIVATE_ADDRESS` environment variables.
   [[#53] by Helge Krueger]
 
+ -  Added a favicon.
+
 [#38]: https://github.com/dahlia/hollo/issues/38
 [#41]: https://github.com/dahlia/hollo/pull/41
 [#43]: https://github.com/dahlia/hollo/pull/43
