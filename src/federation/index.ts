@@ -64,9 +64,15 @@ import {
   onAccountDeleted,
   onAccountMoved,
   onAccountUpdated,
+  onAccountDeleted,
+  onAccountMoved,
+  onAccountUpdated,
   onBlocked,
   onEmojiReactionAdded,
   onEmojiReactionRemoved,
+  onFollowAccepted,
+  onFollowRejected,
+  onFollowed,
   onFollowAccepted,
   onFollowRejected,
   onFollowed,
@@ -78,12 +84,39 @@ import {
   onPostUnpinned,
   onPostUnshared,
   onPostUpdated,
+  onPostCreated,
+  onPostDeleted,
+  onPostPinned,
+  onPostShared,
+  onPostUnpinned,
+  onPostUnshared,
+  onPostUpdated,
   onUnblocked,
+  onUnfollowed,
   onUnfollowed,
   onUnliked,
   onVoted,
+  onVoted,
 } from "./inbox";
 import { isPost, toAnnounce, toCreate, toObject } from "./post";
+
+const logger = getLogger(["hollo", "federation"]);
+
+let kv: KvStore;
+let queue: MessageQueue;
+
+if (getRedisUrl() == null) {
+  kv = new PostgresKvStore(postgres);
+  queue = new ParallelMessageQueue(new PostgresMessageQueue(postgres), 10);
+  logger.info(
+    "No REDIS_URL is defined, using PostgresKvStore and PostgresMessageQueue.",
+  );
+} else {
+  kv = new RedisKvStore(createRedis());
+  queue = new RedisMessageQueue(createRedis, {
+    loopInterval: { seconds: 2, milliseconds: 500 },
+  });
+}
 
 export const federation = createFederation<void>({
   kv: new PostgresKvStore(postgres),
@@ -429,6 +462,9 @@ federation
   .on(Follow, onFollowed)
   .on(Accept, onFollowAccepted)
   .on(Reject, onFollowRejected)
+  .on(Follow, onFollowed)
+  .on(Accept, onFollowAccepted)
+  .on(Reject, onFollowRejected)
   .on(Create, async (ctx, create) => {
     const object = await create.getObject();
     if (
@@ -438,7 +474,9 @@ federation
       object.name != null
     ) {
       await onVoted(ctx, create);
+      await onVoted(ctx, create);
     } else if (isPost(object)) {
+      await onPostCreated(ctx, create);
       await onPostCreated(ctx, create);
     } else {
       inboxLogger.debug("Unsupported object on Create: {object}", { object });
@@ -450,6 +488,7 @@ federation
     const object = await announce.getObject();
     if (isPost(object)) {
       await onPostShared(ctx, announce);
+      await onPostShared(ctx, announce);
     } else {
       inboxLogger.debug("Unsupported object on Announce: {object}", { object });
     }
@@ -460,23 +499,33 @@ federation
       await onAccountUpdated(ctx, update);
     } else if (isPost(object)) {
       await onPostUpdated(ctx, update);
+      await onAccountUpdated(ctx, update);
+    } else if (isPost(object)) {
+      await onPostUpdated(ctx, update);
     } else {
       inboxLogger.debug("Unsupported object on Update: {object}", { object });
     }
   })
+  .on(Delete, async (ctx, del) => {
   .on(Delete, async (ctx, del) => {
     const actorId = del.actorId;
     const objectId = del.objectId;
     if (actorId == null || objectId == null) return;
     if (objectId.href === actorId.href) {
       await onAccountDeleted(ctx, del);
+      await onAccountDeleted(ctx, del);
     } else {
+      await onPostDeleted(ctx, del);
+    }
       await onPostDeleted(ctx, del);
     }
   })
   .on(Add, onPostPinned)
   .on(Remove, onPostUnpinned)
+  .on(Add, onPostPinned)
+  .on(Remove, onPostUnpinned)
   .on(Block, onBlocked)
+  .on(Move, onAccountMoved)
   .on(Move, onAccountMoved)
   .on(Undo, async (ctx, undo) => {
     const object = await undo.getObject();
@@ -488,6 +537,7 @@ federation
     }
     if (object instanceof Follow) {
       await onUnfollowed(ctx, undo);
+      await onUnfollowed(ctx, undo);
     } else if (object instanceof Block) {
       await onUnblocked(ctx, undo);
     } else if (object instanceof Like) {
@@ -495,6 +545,7 @@ federation
     } else if (object instanceof EmojiReact) {
       await onEmojiReactionRemoved(ctx, undo);
     } else if (object instanceof Announce) {
+      await onPostUnshared(ctx, undo);
       await onPostUnshared(ctx, undo);
     } else {
       inboxLogger.debug("Unsupported object on Undo: {object}", { object });
