@@ -64,7 +64,7 @@ app.get("/favicon.png", async (c) => {
 const BEHIND_PROXY = process.env["BEHIND_PROXY"] === "true";
 
 // biome-ignore lint/complexity/useLiteralKeys: tsc complains about this (TS4111)
-const LISTEN_PORT = Number.parseInt(process.env["LISTEN_PORT"] ?? "3000", 10);
+const PORT = Number.parseInt(process.env["PORT"] ?? "3000", 10);
 
 // biome-ignore lint/complexity/useLiteralKeys: tsc complains about this (TS4111)
 const PORT = Number.parseInt(process.env["PORT"] ?? "3000", 10);
