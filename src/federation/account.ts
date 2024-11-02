@@ -1,14 +1,16 @@
 import {
   type Actor,
   Announce,
-  Block,
   type Context,
   Create,
   type DocumentLoader,
   Emoji,
   Follow,
+  Follow,
   Link,
   PropertyValue,
+  Reject,
+  Undo,
   Reject,
   Undo,
   formatSemVer,
@@ -40,6 +42,11 @@ import {
   persistSharingPost,
   updatePostStats,
 } from "./post";
+
+export const REMOTE_ACTOR_FETCH_POSTS = Number.parseInt(
+  // biome-ignore lint/complexity/useLiteralKeys: tsc rants about this (TS4111)
+  process.env["REMOTE_ACTOR_FETCH_POSTS"] ?? "10",
+);
 
 export const REMOTE_ACTOR_FETCH_POSTS = Number.parseInt(
   // biome-ignore lint/complexity/useLiteralKeys: tsc rants about this (TS4111)
@@ -496,50 +503,3 @@ export async function removeFollower(
   );
   return result[0];
 }
-
-export async function blockAccount(
-  db: PgDatabase<
-    PostgresJsQueryResultHKT,
-    typeof schema,
-    ExtractTablesWithRelations<typeof schema>
-  >,
-  ctx: Context<unknown>,
-  blocker: schema.AccountOwner & { account: schema.Account },
-  blockee: schema.Account & { owner: schema.AccountOwner | null },
-): Promise<schema.Block | null> {
-  const result = await db
-    .insert(schema.blocks)
-    .values({
-      accountId: blocker.id,
-      blockedAccountId: blockee.id,
-    })
-    .returning();
-  if (result.length < 1) return null;
-  if (blockee.owner == null) {
-    await unfollowAccount(
-      db,
-      ctx,
-      { ...blocker.account, owner: blocker },
-      blockee,
-    );
-    await removeFollower(
-      db,
-      ctx,
-      { ...blocker.account, owner: blocker },
-      blockee,
-    );
-    await ctx.sendActivity(
-      { username: blocker.handle },
-      { id: new URL(blockee.iri), inboxId: new URL(blockee.inboxUrl) },
-      new Block({
-        id: new URL(`#block/${blockee.id}`, blocker.account.iri),
-        actor: new URL(blocker.account.iri),
-        object: new URL(blockee.iri),
-      }),
-      { excludeBaseUris: [new URL(ctx.origin)] },
-    );
-  }
-  return result[0];
-}
-
-// TODO: define unblockAccount()

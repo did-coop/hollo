@@ -12,9 +12,7 @@ import {
   isActor,
 } from "@fedify/fedify";
 import { getLogger } from "@logtape/logtape";
-import { PromisePool } from "@supercharge/promise-pool";
-import { createObjectCsvStringifier } from "csv-writer-portable";
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { uniq } from "es-toolkit";
 import { Hono } from "hono";
 import { streamText } from "hono/streaming";
@@ -22,21 +20,21 @@ import neatCsv from "neat-csv";
 import { AccountForm } from "../components/AccountForm.tsx";
 import { AccountList } from "../components/AccountList.tsx";
 import { DashboardLayout } from "../components/DashboardLayout.tsx";
+import { DashboardLayout } from "../components/DashboardLayout.tsx";
 import {
   NewAccountPage,
   type NewAccountPageProps,
+} from "../components/NewAccountPage.tsx";
 } from "../components/NewAccountPage.tsx";
 import db from "../db.ts";
 import federation from "../federation";
 import {
   REMOTE_ACTOR_FETCH_POSTS,
-  blockAccount,
   followAccount,
   persistAccount,
   persistAccountPosts,
   unfollowAccount,
 } from "../federation/account.ts";
-import { isPost, persistPost } from "../federation/post.ts";
 import { loginRequired } from "../login.ts";
 import {
   type Account,
@@ -54,6 +52,8 @@ import {
   mutes,
 } from "../schema.ts";
 import { extractCustomEmojis, formatText } from "../text.ts";
+
+const HOLLO_OFFICIAL_ACCOUNT = "@hollo@hollo.social";
 
 const HOLLO_OFFICIAL_ACCOUNT = "@hollo@hollo.social";
 
@@ -82,6 +82,7 @@ accounts.post("/", async (c) => {
     ?.toString()
     ?.trim() as PostVisibility;
   const news = form.get("news") != null;
+  const news = form.get("news") != null;
   if (username == null || username === "" || name == null || name === "") {
     return c.html(
       <NewAccountPage
@@ -92,6 +93,7 @@ accounts.post("/", async (c) => {
           protected: protected_,
           language,
           visibility,
+          news,
           news,
         }}
         errors={{
@@ -105,6 +107,7 @@ accounts.post("/", async (c) => {
               : undefined,
         }}
         officialAccount={HOLLO_OFFICIAL_ACCOUNT}
+        officialAccount={HOLLO_OFFICIAL_ACCOUNT}
       />,
       400,
     );
@@ -113,6 +116,7 @@ accounts.post("/", async (c) => {
   const bioResult = await formatText(db, bio ?? "", fedCtx);
   const nameEmojis = await extractCustomEmojis(db, name);
   const emojis = { ...nameEmojis, ...bioResult.emojis };
+  const [account, owner] = await db.transaction(async (tx) => {
   const [account, owner] = await db.transaction(async (tx) => {
     await tx
       .insert(instances)
@@ -159,6 +163,21 @@ accounts.post("/", async (c) => {
       })
       .returning();
     return [account[0], owner[0]];
+    const owner = await tx
+      .insert(accountOwners)
+      .values({
+        id: account[0].id,
+        handle: username,
+        rsaPrivateKeyJwk: await exportJwk(rsaKeyPair.privateKey),
+        rsaPublicKeyJwk: await exportJwk(rsaKeyPair.publicKey),
+        ed25519PrivateKeyJwk: await exportJwk(ed25519KeyPair.privateKey),
+        ed25519PublicKeyJwk: await exportJwk(ed25519KeyPair.publicKey),
+        bio: bio ?? "",
+        language: language ?? "en",
+        visibility: visibility ?? "public",
+      })
+      .returning();
+    return [account[0], owner[0]];
   });
   const owners = await db.query.accountOwners.findMany({
     with: { account: true },
@@ -167,19 +186,13 @@ accounts.post("/", async (c) => {
     const actor = await fedCtx.lookupObject(HOLLO_OFFICIAL_ACCOUNT);
     if (isActor(actor)) {
       await db.transaction(async (tx) => {
-        const following = await persistAccount(tx, actor, c.req.url, fedCtx);
+        const following = await persistAccount(tx, actor, fedCtx);
         if (following != null) {
           await followAccount(tx, fedCtx, { ...account, owner }, following);
-          await persistAccountPosts(
-            tx,
-            account,
-            REMOTE_ACTOR_FETCH_POSTS,
-            c.req.url,
-            {
-              ...fedCtx,
-              suppressError: true,
-            },
-          );
+          await persistAccountPosts(tx, account, REMOTE_ACTOR_FETCH_POSTS, {
+            ...fedCtx,
+            suppressError: true,
+          });
         }
       });
     }
@@ -216,6 +229,12 @@ accounts.get("/new", (c) => {
       officialAccount={HOLLO_OFFICIAL_ACCOUNT}
     />,
   );
+  return c.html(
+    <NewAccountPage
+      values={{ language: "en", news: true }}
+      officialAccount={HOLLO_OFFICIAL_ACCOUNT}
+    />,
+  );
 });
 
 accounts.get("/:id", async (c) => {
@@ -243,10 +262,30 @@ accounts.get("/:id", async (c) => {
       officialAccount={HOLLO_OFFICIAL_ACCOUNT}
     />,
   );
+  const news = await db.query.follows.findFirst({
+    where: and(
+      eq(
+        follows.followingId,
+        db
+          .select({ id: accountsTable.id })
+          .from(accountsTable)
+          .where(eq(accountsTable.handle, HOLLO_OFFICIAL_ACCOUNT)),
+      ),
+      eq(follows.followerId, accountOwner.id),
+    ),
+  });
+  return c.html(
+    <AccountPage
+      accountOwner={accountOwner}
+      news={news != null}
+      officialAccount={HOLLO_OFFICIAL_ACCOUNT}
+    />,
+  );
 });
 
 interface AccountPageProps extends NewAccountPageProps {
   accountOwner: AccountOwner & { account: Account };
+  news: boolean;
   news: boolean;
 }
 
@@ -270,8 +309,10 @@ function AccountPage(props: AccountPageProps) {
           language: props.values?.language ?? props.accountOwner.language,
           visibility: props.values?.visibility ?? props.accountOwner.visibility,
           news: props.values?.news ?? props.news,
+          news: props.values?.news ?? props.news,
         }}
         errors={props.errors}
+        officialAccount={HOLLO_OFFICIAL_ACCOUNT}
         officialAccount={HOLLO_OFFICIAL_ACCOUNT}
         submitLabel="Save changes"
       />
@@ -295,10 +336,12 @@ accounts.post("/:id", async (c) => {
     ?.toString()
     ?.trim() as PostVisibility;
   const news = form.get("news") != null;
+  const news = form.get("news") != null;
   if (name == null || name === "") {
     return c.html(
       <AccountPage
         accountOwner={accountOwner}
+        news={news}
         news={news}
         values={{
           name,
@@ -307,10 +350,12 @@ accounts.post("/:id", async (c) => {
           language,
           visibility,
           news,
+          news,
         }}
         errors={{
           name: name == null || name === "" ? "Display name is required." : "",
         }}
+        officialAccount={HOLLO_OFFICIAL_ACCOUNT}
         officialAccount={HOLLO_OFFICIAL_ACCOUNT}
       />,
       400,
@@ -355,20 +400,14 @@ accounts.post("/:id", async (c) => {
   const account = { ...accountOwner.account, owner: accountOwner };
   const newsActor = await fedCtx.lookupObject(HOLLO_OFFICIAL_ACCOUNT);
   if (isActor(newsActor)) {
-    const newsAccount = await persistAccount(db, newsActor, c.req.url, fedCtx);
+    const newsAccount = await persistAccount(db, newsActor, fedCtx);
     if (newsAccount != null) {
       if (news) {
         await followAccount(db, fedCtx, account, newsAccount);
-        await persistAccountPosts(
-          db,
-          newsAccount,
-          REMOTE_ACTOR_FETCH_POSTS,
-          c.req.url,
-          {
-            ...fedCtx,
-            suppressError: true,
-          },
-        );
+        await persistAccountPosts(db, newsAccount, REMOTE_ACTOR_FETCH_POSTS, {
+          ...fedCtx,
+          suppressError: true,
+        });
       } else await unfollowAccount(db, fedCtx, account, newsAccount);
     }
   }
@@ -520,48 +559,36 @@ accounts.get("/:id/migrate", async (c) => {
               account. Note that this action is <strong>irreversible</strong>.
             </p>
           </hgroup>
-        </header>
-        <form method="post" action="migrate/to">
-          <fieldset role="group">
-            <input
-              type="text"
-              name="handle"
-              placeholder={HOLLO_OFFICIAL_ACCOUNT}
-              required
-              {...(aliasesError === "to"
-                ? { "aria-invalid": "true", value: aliasesHandle }
-                : { value: accountOwner.account.successor?.handle })}
-              {...(accountOwner.account.successorId == null
-                ? {}
-                : { disabled: true })}
-            />
-            {accountOwner.account.successorId == null ? (
-              <button type="submit">Migrate</button>
-            ) : (
-              <button type="submit" disabled>
-                Migrated
-              </button>
-            )}
-          </fieldset>
-          <small>
-            A fediverse handle (e.g., <tt>@hollo@hollo.social</tt>) or an actor
-            URI (e.g., <tt>https://hollo.social/@hollo</tt>) is allowed.{" "}
-            <strong>
-              The new account must have an alias to this old account.
-            </strong>
-          </small>
-        </form>
-      </article>
-
-      <article>
-        <header>
-          <hgroup>
-            <h2>Export data</h2>
-            <p>
-              Export your account data into CSV files. Note that these files are
-              compatible with Mastodon.
-            </p>
-          </hgroup>
+          <form method="post" action="migrate/to">
+            <fieldset role="group">
+              <input
+                type="text"
+                name="handle"
+                placeholder={HOLLO_OFFICIAL_ACCOUNT}
+                required
+                {...(error === "to"
+                  ? { "aria-invalid": "true", value: handle }
+                  : { value: accountOwner.account.successor?.handle })}
+                {...(accountOwner.account.successorId == null
+                  ? {}
+                  : { disabled: true })}
+              />
+              {accountOwner.account.successorId == null ? (
+                <button type="submit">Migrate</button>
+              ) : (
+                <button type="submit" disabled>
+                  Migrated
+                </button>
+              )}
+            </fieldset>
+            <small>
+              A fediverse handle (e.g., <tt>@hollo@hollo.social</tt>) or an
+              actor URI (e.g., <tt>https://hollo.social/@hollo</tt>) is allowed.{" "}
+              <strong>
+                The new account must have an alias to this old account.
+              </strong>
+            </small>
+          </form>
         </header>
         <table>
           <thead>

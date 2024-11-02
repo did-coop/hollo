@@ -22,9 +22,9 @@ import {
   type Move,
   Note,
   Question,
-  Reject,
+  type Reject,
   type Remove,
-  Undo,
+  type Undo,
   type Update,
   isActor,
 } from "@fedify/fedify";
@@ -49,7 +49,12 @@ import {
   posts,
   reactions,
 } from "../schema";
-import { persistAccount, updateAccountStats } from "./account";
+import {
+  persistAccount,
+  removeFollower,
+  unfollowAccount,
+  updateAccountStats,
+} from "./account";
 import {
   isPost,
   persistPollVote,

@@ -1,3 +1,4 @@
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { Block, Undo, isActor, lookupObject } from "@fedify/fedify";
 import * as vocab from "@fedify/fedify/vocab";
 import { zValidator } from "@hono/zod-validator";
@@ -10,7 +11,6 @@ import {
   gte,
   ilike,
   inArray,
-  isNotNull,
   isNull,
   lt,
   lte,
@@ -32,10 +32,10 @@ import { getPostRelations, serializePost } from "../../entities/status";
 import { federation } from "../../federation";
 import {
   REMOTE_ACTOR_FETCH_POSTS,
-  blockAccount,
   followAccount,
   persistAccount,
   persistAccountPosts,
+  removeFollower,
   unfollowAccount,
 } from "../../federation/account";
 import { type Variables, scopeRequired, tokenRequired } from "../../oauth";
@@ -544,20 +544,15 @@ app.get(
       .from(posts)
       .where(eq(posts.accountId, account.id));
     if (cnt < REMOTE_ACTOR_FETCH_POSTS) {
+    if (cnt < REMOTE_ACTOR_FETCH_POSTS) {
       const fedCtx = federation.createContext(c.req.raw, undefined);
-      await persistAccountPosts(
-        db,
-        account,
-        REMOTE_ACTOR_FETCH_POSTS,
-        c.req.url,
-        {
-          documentLoader: await fedCtx.getDocumentLoader({
-            username: tokenOwner.handle,
-          }),
-          contextLoader: fedCtx.contextLoader,
-          suppressError: true,
-        },
-      );
+      await persistAccountPosts(db, account, REMOTE_ACTOR_FETCH_POSTS, {
+        documentLoader: await fedCtx.getDocumentLoader({
+          username: tokenOwner.handle,
+        }),
+        contextLoader: fedCtx.contextLoader,
+        suppressError: true,
+      });
     }
     const query = c.req.valid("query");
     const limit = query.limit ?? 20;
@@ -698,8 +693,18 @@ app.post(
     const following = await db.query.accounts.findFirst({
       where: eq(accounts.id, id),
       with: { owner: true },
+      with: { owner: true },
     });
     if (following == null) return c.json({ error: "Record not found" }, 404);
+    const fedCtx = federation.createContext(c.req.raw, undefined);
+    const follow = await followAccount(
+      db,
+      fedCtx,
+      { ...owner.account, owner },
+      following,
+    );
+    if (follow == null) {
+      return c.json({ error: "The action is not allowed" }, 403);
     const fedCtx = federation.createContext(c.req.raw, undefined);
     const follow = await followAccount(
       db,
@@ -748,6 +753,13 @@ app.post(
       );
     }
     const id = c.req.param("id");
+    const following = await db.query.accounts.findFirst({
+      where: eq(accounts.id, id),
+      with: { owner: true },
+    });
+    if (following == null) return c.json({ error: "Record not found" }, 404);
+    const fedCtx = federation.createContext(c.req.raw, undefined);
+    await unfollowAccount(db, fedCtx, { ...owner.account, owner }, following);
     const following = await db.query.accounts.findFirst({
       where: eq(accounts.id, id),
       with: { owner: true },
@@ -1037,8 +1049,25 @@ app.post(
       with: { owner: true },
     });
     if (acct == null) return c.json({ error: "Record not found" }, 404);
-    const fedCtx = federation.createContext(c.req.raw, undefined);
-    await blockAccount(db, fedCtx, owner, acct);
+    await db.insert(blocks).values({
+      accountId: owner.id,
+      blockedAccountId: id,
+    });
+    if (acct.owner == null) {
+      const fedCtx = federation.createContext(c.req.raw, undefined);
+      await unfollowAccount(db, fedCtx, { ...owner.account, owner }, acct);
+      await removeFollower(db, fedCtx, { ...owner.account, owner }, acct);
+      await fedCtx.sendActivity(
+        { username: owner.handle },
+        { id: new URL(acct.iri), inboxId: new URL(acct.inboxUrl) },
+        new Block({
+          id: new URL(`#block/${acct.id}`, owner.account.iri),
+          actor: new URL(owner.account.iri),
+          object: new URL(acct.iri),
+        }),
+        { excludeBaseUris: [new URL(fedCtx.url)] },
+      );
+    }
     const result = await db.query.accounts.findFirst({
       where: eq(accounts.id, id),
       with: {
