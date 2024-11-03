@@ -94,6 +94,12 @@ Released on November 4, 2024.
 
 ## Version 0.2.0
 
+To be released.
+
+
+Version 0.2.0
+-------------
+
 Released on November 3, 2024.
 
 - Dropped support for Redis.
