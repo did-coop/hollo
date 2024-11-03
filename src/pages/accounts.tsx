@@ -559,132 +559,36 @@ accounts.get("/:id/migrate", async (c) => {
               account. Note that this action is <strong>irreversible</strong>.
             </p>
           </hgroup>
-          <form method="post" action="migrate/to">
-            <fieldset role="group">
-              <input
-                type="text"
-                name="handle"
-                placeholder={HOLLO_OFFICIAL_ACCOUNT}
-                required
-                {...(error === "to"
-                  ? { "aria-invalid": "true", value: handle }
-                  : { value: accountOwner.account.successor?.handle })}
-                {...(accountOwner.account.successorId == null
-                  ? {}
-                  : { disabled: true })}
-              />
-              {accountOwner.account.successorId == null ? (
-                <button type="submit">Migrate</button>
-              ) : (
-                <button type="submit" disabled>
-                  Migrated
-                </button>
-              )}
-            </fieldset>
-            <small>
-              A fediverse handle (e.g., <tt>@hollo@hollo.social</tt>) or an
-              actor URI (e.g., <tt>https://hollo.social/@hollo</tt>) is allowed.{" "}
-              <strong>
-                The new account must have an alias to this old account.
-              </strong>
-            </small>
-          </form>
         </header>
-        <table>
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th>Entries</th>
-              <th>Download</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Follows</td>
-              <td>{followsCount.toLocaleString("en-US")}</td>
-              <td>
-                <a href="migrate/following_accounts.csv">CSV</a>
-              </td>
-            </tr>
-            <tr>
-              <td>Lists</td>
-              <td>{listsCount.toLocaleString("en-US")}</td>
-              <td>
-                <a href="migrate/lists.csv">CSV</a>
-              </td>
-            </tr>
-            <tr>
-              <td>You mute</td>
-              <td>{mutesCount.toLocaleString("en-US")}</td>
-              <td>
-                <a href="migrate/muted_accounts.csv">CSV</a>
-              </td>
-            </tr>
-            <tr>
-              <td>You block</td>
-              <td>{blocksCount.toLocaleString("en-US")}</td>
-              <td>
-                <a href="migrate/blocked_accounts.csv">CSV</a>
-              </td>
-            </tr>
-            <tr>
-              <td>Bookmarks</td>
-              <td>{bookmarksCount.toLocaleString("en-US")}</td>
-              <td>
-                <a href="migrate/bookmarks.csv">CSV</a>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </article>
-
-      <article id="import-data">
-        <header>
-          <hgroup>
-            <h2>Import data</h2>
-            {importDataResult == null ? (
-              <p>
-                Import your account data from CSV files, which are exported from
-                other Hollo or Mastodon instances. The existing data won't be
-                overwritten, but the new data will be <strong>merged</strong>{" "}
-                with the existing data.
-              </p>
+        <form method="post" action="migrate/to">
+          <fieldset role="group">
+            <input
+              type="text"
+              name="handle"
+              placeholder={HOLLO_OFFICIAL_ACCOUNT}
+              required
+              {...(error === "to"
+                ? { "aria-invalid": "true", value: handle }
+                : { value: accountOwner.account.successor?.handle })}
+              {...(accountOwner.account.successorId == null
+                ? {}
+                : { disabled: true })}
+            />
+            {accountOwner.account.successorId == null ? (
+              <button type="submit">Migrate</button>
             ) : (
-              <p>{importDataResult}</p>
+              <button type="submit" disabled>
+                Migrated
+              </button>
             )}
-          </hgroup>
-        </header>
-        <form
-          method="post"
-          action="migrate/import"
-          encType="multipart/form-data"
-          onsubmit={`
-            const [submit] = this.getElementsByTagName('button');
-            submit.disabled = true;
-            submit.textContent = 'Importing… it may take a while…';
-          `}
-        >
-          <fieldset class="grid">
-            <label>
-              Category
-              <select name="category">
-                <option value="following_accounts">Follows</option>
-                <option value="lists">Lists</option>
-                <option value="muted_accounts">Muted accounts</option>
-                <option value="blocked_accounts">Blocked accounts</option>
-                <option value="bookmarks">Bookmarks</option>
-              </select>
-              <small>The category of the data you want to import.</small>
-            </label>
-            <label>
-              CSV file
-              <input type="file" name="file" accept=".csv" />
-              <small>
-                A CSV file exported from other Hollo or Mastodon instances.
-              </small>
-            </label>
           </fieldset>
-          <button type="submit">Import</button>
+          <small>
+            A fediverse handle (e.g., <tt>@hollo@hollo.social</tt>) or an actor
+            URI (e.g., <tt>https://hollo.social/@hollo</tt>) is allowed.{" "}
+            <strong>
+              The new account must have an alias to this old account.
+            </strong>
+          </small>
         </form>
       </article>
     </DashboardLayout>,
