@@ -97,6 +97,12 @@ Released on November 4, 2024.
 To be released.
 
 
+Version 0.2.1
+-------------
+
+To be released.
+
+
 Version 0.2.0
 -------------
 
