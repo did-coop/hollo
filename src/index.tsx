@@ -50,16 +50,6 @@ app.route("/api", api);
 app.route("/image", image);
 app.get("/nodeinfo/2.0", (c) => c.redirect("/nodeinfo/2.1"));
 
-app.get("/favicon.png", async (c) => {
-  const file = Bun.file(join(import.meta.dirname, "public", "favicon.png"));
-  return c.body(await file.arrayBuffer(), {
-    headers: {
-      "Content-Type": "image/png",
-      "Cache-Control": "public, max-age=31536000",
-    },
-  });
-});
-
 // biome-ignore lint/complexity/useLiteralKeys: tsc complains about this (TS4111)
 const BEHIND_PROXY = process.env["BEHIND_PROXY"] === "true";
 
