@@ -72,7 +72,7 @@ export async function onAccountUpdated(
 ): Promise<void> {
   const object = await update.getObject();
   if (!isActor(object)) return;
-  await persistAccount(db, object, ctx);
+  await persistAccount(db, object, ctx.origin, ctx);
 }
 
 export async function onAccountDeleted(
@@ -109,7 +109,7 @@ export async function onFollowed(
     inboxLogger.debug("Invalid following: {following}", { following });
     return;
   }
-  const follower = await persistAccount(db, actor, ctx);
+  const follower = await persistAccount(db, actor, ctx.origin, ctx);
   if (follower == null) return;
   let approves = !following.protected;
   if (approves) {
@@ -160,7 +160,7 @@ export async function onUnfollowed(
     inboxLogger.debug("Invalid actor: {actor}", { actor });
     return;
   }
-  const account = await persistAccount(db, actor, ctx);
+  const account = await persistAccount(db, actor, ctx.origin, ctx);
   if (account == null) return;
   const deleted = await db
     .delete(follows)
@@ -182,7 +182,7 @@ export async function onFollowAccepted(
     inboxLogger.debug("Invalid actor: {actor}", { actor });
     return;
   }
-  const account = await persistAccount(db, actor, ctx);
+  const account = await persistAccount(db, actor, ctx.origin, ctx);
   if (account == null) return;
   if (accept.objectId != null) {
     const updated = await db
@@ -231,7 +231,7 @@ export async function onFollowRejected(
     inboxLogger.debug("Invalid actor: {actor}", { actor });
     return;
   }
-  const account = await persistAccount(db, actor, ctx);
+  const account = await persistAccount(db, actor, ctx.origin, ctx);
   if (account == null) return;
   if (reject.objectId != null) {
     const deleted = await db
@@ -347,7 +347,7 @@ export async function onPostCreated(
   const object = await create.getObject();
   if (!isPost(object)) return;
   const post = await db.transaction(async (tx) => {
-    const post = await persistPost(tx, object, ctx);
+    const post = await persistPost(tx, object, ctx.origin, ctx);
     if (post?.replyTargetId != null) {
       await updatePostStats(tx, { id: post.replyTargetId });
     }
@@ -392,7 +392,7 @@ export async function onPostUpdated(
 ): Promise<void> {
   const object = await update.getObject();
   if (!isPost(object)) return;
-  await persistPost(db, object, ctx);
+  await persistPost(db, object, ctx.origin, ctx);
 }
 
 export async function onPostDeleted(
@@ -426,7 +426,13 @@ export async function onPostShared(
   const object = await announce.getObject();
   if (!isPost(object)) return;
   await db.transaction(async (tx) => {
-    const post = await persistSharingPost(tx, announce, object, ctx);
+    const post = await persistSharingPost(
+      tx,
+      announce,
+      object,
+      ctx.origin,
+      ctx,
+    );
     if (post?.sharingId != null) {
       await updatePostStats(tx, { id: post.sharingId });
     }
@@ -482,7 +488,7 @@ export async function onPostPinned(
     where: eq(accounts.featuredUrl, add.targetId.href),
   });
   await db.transaction(async (tx) => {
-    const post = await persistPost(tx, object, ctx);
+    const post = await persistPost(tx, object, ctx.origin, ctx);
     if (post == null) return;
     for (const account of accountList) {
       await tx.insert(pinnedPosts).values({
@@ -504,7 +510,7 @@ export async function onPostUnpinned(
     where: eq(accounts.featuredUrl, remove.targetId.href),
   });
   await db.transaction(async (tx) => {
-    const post = await persistPost(tx, object, ctx);
+    const post = await persistPost(tx, object, ctx.origin, ctx);
     if (post == null) return;
     for (const account of accountList) {
       await tx
@@ -725,7 +731,9 @@ export async function onVoted(
   ) {
     return;
   }
-  const vote = await db.transaction((tx) => persistPollVote(tx, object, ctx));
+  const vote = await db.transaction((tx) =>
+    persistPollVote(tx, object, ctx.origin, ctx),
+  );
   if (vote == null) return;
   const post = await db.query.posts.findFirst({
     with: {

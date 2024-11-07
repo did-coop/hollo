@@ -1,4 +1,3 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { Block, Undo, isActor, lookupObject } from "@fedify/fedify";
 import * as vocab from "@fedify/fedify/vocab";
 import { zValidator } from "@hono/zod-validator";
@@ -546,13 +545,19 @@ app.get(
     if (cnt < REMOTE_ACTOR_FETCH_POSTS) {
     if (cnt < REMOTE_ACTOR_FETCH_POSTS) {
       const fedCtx = federation.createContext(c.req.raw, undefined);
-      await persistAccountPosts(db, account, REMOTE_ACTOR_FETCH_POSTS, {
-        documentLoader: await fedCtx.getDocumentLoader({
-          username: tokenOwner.handle,
-        }),
-        contextLoader: fedCtx.contextLoader,
-        suppressError: true,
-      });
+      await persistAccountPosts(
+        db,
+        account,
+        REMOTE_ACTOR_FETCH_POSTS,
+        c.req.url,
+        {
+          documentLoader: await fedCtx.getDocumentLoader({
+            username: tokenOwner.handle,
+          }),
+          contextLoader: fedCtx.contextLoader,
+          suppressError: true,
+        },
+      );
     }
     const query = c.req.valid("query");
     const limit = query.limit ?? 20;
