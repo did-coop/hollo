@@ -7,9 +7,6 @@ import { serializeAccount } from "./account";
 import { serializeList } from "./list";
 import { getPostRelations, serializePost } from "./status";
 
-// biome-ignore lint/complexity/useLiteralKeys: <explanation>
-const homeUrl = process.env["HOME_URL"] || "http://localhost:3000/";
-
 // Account Exporter class to handle data loading and serialization
 export class AccountExporter {
   actorId: string;
