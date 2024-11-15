@@ -60,7 +60,7 @@ export class AccountExporter {
       "@context": "https://www.w3.org/ns/activitystreams",
       id: "bookmarks.json",
       type: "OrderedCollection",
-      orderedItems: bookmarks.map((bookmark) => bookmark.postId),
+      orderedItems: bookmarks,
     };
   }
   private normalizeUrl(path: string): string {
