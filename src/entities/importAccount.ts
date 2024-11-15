@@ -296,6 +296,7 @@ export class AccountImporter {
         `Failed to import follow relationship for follower ID: ${following.followerId} following ID: ${this.actorId}`,
         error,
       );
+      throw error;
     }
   }
 
