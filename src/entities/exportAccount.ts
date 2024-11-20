@@ -55,6 +55,24 @@ export class AccountExporter {
     });
   }
 
+  async loadLikes() {
+    return db.query.likes.findMany({
+      where: eq(schema.likes.accountId, this.actorId),
+    });
+  }
+
+  async loadBloks() {
+    return db.query.blocks.findMany({
+      where: eq(schema.blocks.accountId, this.actorId),
+    });
+  }
+
+  async loadMutes() {
+    return db.query.mutes.findMany({
+      where: eq(schema.mutes.accountId, this.actorId),
+    });
+  }
+
   serializeBookmarks(bookmarks: schema.Bookmark[]) {
     return {
       "@context": "https://www.w3.org/ns/activitystreams",
@@ -96,7 +114,48 @@ export class AccountExporter {
       })),
     };
   }
-  
+
+  serializeMutes(mutes: schema.Mute[]) {
+    return {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      id: "mutes.json",
+      type: "OrderedCollection",
+      orderedItems: mutes.map((mute) => ({
+        id: mute.id,
+        accountId: mute.accountId,
+        mutedAccountId: mute.mutedAccountId,
+        notifications: mute.notifications,
+        duration: mute.duration,
+        created: mute.created,
+      })),
+    };
+  }
+
+  serializeBlocks(blocks: schema.Block[]) {
+    return {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      id: "blocks.json",
+      type: "OrderedCollection",
+      orderedItems: blocks.map((block) => ({
+        accountId: block.accountId,
+        blockedAccountId: block.blockedAccountId,
+        created: block.created,
+      })),
+    };
+  }
+
+  serializeLikes(likes: schema.Like[]) {
+    return {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      id: "likes.json",
+      type: "OrderedCollection",
+      orderedItems: likes.map((like) => ({
+        postId: like.postId,
+        accountId: like.accountId,
+        created: like.created,
+      })),
+    };
+  }
 
   async exportData(c: Context) {
     try {
@@ -117,46 +176,32 @@ export class AccountExporter {
       const followingAccounts = await this.loadFollows("following");
       const serializedFollowing = this.serializeFollowing(followingAccounts);
 
-      const bookmarks = await this.loadBookmarks();
-      const serializedBookmarks = this.serializeBookmarks(bookmarks);
+    const bookmarks = await this.loadBookmarks();
+    const serializedBookmarks = this.serializeBookmarks(bookmarks);
 
-      // Initialize export stream
-      const { addMediaFile, finalize } = await exportActorProfile({
-        actorProfile: serializeAccount(
-          { ...account, successor: null },
-          c.req.url,
-        ),
-        outbox: serializedPosts,
-        lists: serializedLists,
-        followers: serializedFollowers,
-        followingAccounts: serializedFollowing,
-        bookmarks: serializedBookmarks,
-      });
+    const mutes = await this.loadMutes();
+    const serializedMutes = this.serializeMutes(mutes);
 
-      // Add media files
-      const mediaPromises = postsData.flatMap((post) => {
-        if (!post.media) return [];
+    const blocks = await this.loadBloks();
+    const serializedBlocks = this.serializeBlocks(blocks);
 
-        return post.media.map(async (media: { id: string; url: string }) => {
-          try {
-            const mediaRecord = await this.downloadMedia(media.url);
-            if (!mediaRecord) return;
+    const likes = await this.loadLikes();
+    const serializedLikes = this.serializeLikes(likes);
 
-            const extension = mediaRecord.contentType?.split("/")[1];
-            const fileName = `${media.id}.${extension}`;
-
-            // Add media file to the export stream
-            addMediaFile(fileName, mediaRecord.buffer, mediaRecord.contentType);
-          } catch (error) {
-            console.error(`Error downloading media: ${media.id}`, error);
-          }
-        });
-      });
-
-      // Wait for all media downloads to complete
-      await Promise.all(mediaPromises);
-
-      const exportTarballStream = finalize();
+    const exportTarballStream = exportActorProfile({
+      actorProfile: serializeAccount(
+        { ...account, successor: null },
+        c.req.url,
+      ),
+      outbox: serializedPosts,
+      lists: serializedLists,
+      followers: serializedFollowers,
+      followingAccounts: serializedFollowing,
+      bookmarks: serializedBookmarks,
+      mutedAccounts: serializedMutes,
+      blockedAccounts: serializedBlocks,
+      likes: serializedLikes,
+    });
 
       return c.body(exportTarballStream, 200, {
         "Content-Type": "application/x-tar",
