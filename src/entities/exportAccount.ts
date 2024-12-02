@@ -18,6 +18,9 @@ export class AccountExporter {
     if (!actorId) {
       throw new Error("Invalid actorId");
     }
+    if (!actorId) {
+      throw new Error("Invalid actorId");
+    }
     this.actorId = actorId;
   }
 
@@ -78,6 +81,7 @@ export class AccountExporter {
         account: this.normalizeUrl(`accounts/${account.followingId}`),
         showBoosts: account.shares,
         notifyOnNewPosts: account.notify,
+        language: account.languages ?? null,
         language: account.languages ?? null,
       })),
     };
