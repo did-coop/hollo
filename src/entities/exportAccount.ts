@@ -199,7 +199,8 @@ export class AccountExporter {
       likes: serializedLikes,
     });
 
-    return c.body(exportTarballStream as any, 200, {
+    // @ts-ignore
+    return c.body(exportTarballStream, 200, {
       "Content-Type": "application/x-tar",
       "Content-Disposition": `attachment; filename="account_export_${this.actorId}.tar"`,
     });
