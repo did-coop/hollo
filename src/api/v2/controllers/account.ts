@@ -9,14 +9,6 @@ export const exportController = async (c: Context) => {
   logger.info("Received account export request");
 
   const actorId = c.req.param("actorId");
-  // const owner = c.get("token").accountOwner;
-
-  // if (owner == null) {
-  //   return c.json({ error: "Unauthorized" }, 401);
-  // }
-  // if (owner.handle !== actorId) {
-  //   return c.json({ error: "Forbidden" }, 403);
-  // }
 
   try {
     const exporter = new AccountExporter(actorId);
@@ -32,11 +24,6 @@ export const importController = async (c: Context) => {
   logger.info("Received account import request");
 
   const actorId = c.req.param("actorId");
-
-  if (!actorId) {
-    logger.error("Actor ID is missing in the request");
-    return c.json({ error: "Actor ID is required" }, 400);
-  }
 
   try {
     // Parse the incoming multipart/form-data

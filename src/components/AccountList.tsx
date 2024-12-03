@@ -91,6 +91,9 @@ function AccountItem({ accountOwner: { account } }: AccountItemProps) {
           </div>
         </form>
         <div className="grid">
+          <form action={`/api/v2/${account.id}/accountExport`} method="post">
+            <button type="submit">Export Account</button>
+          </form>
           <iframe
             id="hiddenIframe"
             name="hiddenIframe"
