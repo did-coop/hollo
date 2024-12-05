@@ -29,13 +29,9 @@ app.route("/instance", instance);
 
 app.post("/media", tokenRequired, scopeRequired(["write:media"]), postMedia);
 
-app.post(
-  "/:actorId/accountExport",
-  loginRequired,
-  exportController,
-);
+app.post("/:actorId/accountExport", loginRequired, exportController);
 
-app.post(":actorId/accountImport",loginRequired, importController);
+app.post(":actorId/accountImport", loginRequired, importController);
 
 app.get(
   "/search",
