@@ -12,7 +12,8 @@ import {
   isActor,
 } from "@fedify/fedify";
 import { getLogger } from "@logtape/logtape";
-import { and, eq, sql } from "drizzle-orm";
+import { createObjectCsvStringifier } from "csv-writer-portable";
+import { and, count, eq, sql } from "drizzle-orm";
 import { uniq } from "es-toolkit";
 import { Hono } from "hono";
 import { streamText } from "hono/streaming";
@@ -602,6 +603,80 @@ accounts.get("/:id/migrate", async (c) => {
             </strong>
           </small>
         </form>
+      </article>
+
+      <article>
+        <header>
+          <hgroup>
+            <h2>Export data</h2>
+            <p>
+              Export your account data into CSV files. Note that these files are
+              compatible with Mastodon.
+            </p>
+          </hgroup>
+        </header>
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Entries</th>
+              <th>Download</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Follows</td>
+              <td>{followsCount.toLocaleString("en-US")}</td>
+              <td>
+                <a
+                  href={`/accounts/${accountOwner.id}/migrate/following_accounts.csv`}
+                >
+                  CSV
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>Lists</td>
+              <td>{listsCount.toLocaleString("en-US")}</td>
+              <td>
+                <a href={`/accounts/${accountOwner.id}/migrate/lists.csv`}>
+                  CSV
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>You mute</td>
+              <td>{mutesCount.toLocaleString("en-US")}</td>
+              <td>
+                <a
+                  href={`/accounts/${accountOwner.id}/migrate/muted_accounts.csv`}
+                >
+                  CSV
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>You block</td>
+              <td>{blocksCount.toLocaleString("en-US")}</td>
+              <td>
+                <a
+                  href={`/accounts/${accountOwner.id}/migrate/blocked_accounts.csv`}
+                >
+                  CSV
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>Bookmarks</td>
+              <td>{bookmarksCount.toLocaleString("en-US")}</td>
+              <td>
+                <a href={`/accounts/${accountOwner.id}/migrate/bookmarks.csv`}>
+                  CSV
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </article>
     </DashboardLayout>,
   );
