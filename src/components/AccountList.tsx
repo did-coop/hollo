@@ -75,7 +75,7 @@ function AccountItem({ accountOwner: { account } }: AccountItemProps) {
             <a
               href={`/accounts/${account.id}`}
               role="button"
-              style={{ display: 'block' }}
+              style={{ display: "block" }}
             >
               Edit
             </a>
@@ -83,7 +83,7 @@ function AccountItem({ accountOwner: { account } }: AccountItemProps) {
               href={`/accounts/${account.id}/migrate`}
               role="button"
               className="contrast"
-              style={{ display: 'block' }}
+              style={{ display: "block" }}
             >
               Migrate from/to
             </a>
