@@ -12,8 +12,9 @@ import {
   isActor,
 } from "@fedify/fedify";
 import { getLogger } from "@logtape/logtape";
+import { PromisePool } from "@supercharge/promise-pool";
 import { createObjectCsvStringifier } from "csv-writer-portable";
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { uniq } from "es-toolkit";
 import { Hono } from "hono";
 import { streamText } from "hono/streaming";
@@ -31,11 +32,13 @@ import db from "../db.ts";
 import federation from "../federation";
 import {
   REMOTE_ACTOR_FETCH_POSTS,
+  blockAccount,
   followAccount,
   persistAccount,
   persistAccountPosts,
   unfollowAccount,
 } from "../federation/account.ts";
+import { isPost, persistPost } from "../federation/post.ts";
 import { loginRequired } from "../login.ts";
 import {
   type Account,
@@ -580,8 +583,8 @@ accounts.get("/:id/migrate", async (c) => {
               name="handle"
               placeholder={HOLLO_OFFICIAL_ACCOUNT}
               required
-              {...(error === "to"
-                ? { "aria-invalid": "true", value: handle }
+              {...(aliasesError === "to"
+                ? { "aria-invalid": "true", value: aliasesHandle }
                 : { value: accountOwner.account.successor?.handle })}
               {...(accountOwner.account.successorId == null
                 ? {}
@@ -628,55 +631,89 @@ accounts.get("/:id/migrate", async (c) => {
               <td>Follows</td>
               <td>{followsCount.toLocaleString("en-US")}</td>
               <td>
-                <a
-                  href={`/accounts/${accountOwner.id}/migrate/following_accounts.csv`}
-                >
-                  CSV
-                </a>
+                <a href="migrate/following_accounts.csv">CSV</a>
               </td>
             </tr>
             <tr>
               <td>Lists</td>
               <td>{listsCount.toLocaleString("en-US")}</td>
               <td>
-                <a href={`/accounts/${accountOwner.id}/migrate/lists.csv`}>
-                  CSV
-                </a>
+                <a href="migrate/lists.csv">CSV</a>
               </td>
             </tr>
             <tr>
               <td>You mute</td>
               <td>{mutesCount.toLocaleString("en-US")}</td>
               <td>
-                <a
-                  href={`/accounts/${accountOwner.id}/migrate/muted_accounts.csv`}
-                >
-                  CSV
-                </a>
+                <a href="migrate/muted_accounts.csv">CSV</a>
               </td>
             </tr>
             <tr>
               <td>You block</td>
               <td>{blocksCount.toLocaleString("en-US")}</td>
               <td>
-                <a
-                  href={`/accounts/${accountOwner.id}/migrate/blocked_accounts.csv`}
-                >
-                  CSV
-                </a>
+                <a href="migrate/blocked_accounts.csv">CSV</a>
               </td>
             </tr>
             <tr>
               <td>Bookmarks</td>
               <td>{bookmarksCount.toLocaleString("en-US")}</td>
               <td>
-                <a href={`/accounts/${accountOwner.id}/migrate/bookmarks.csv`}>
-                  CSV
-                </a>
+                <a href="migrate/bookmarks.csv">CSV</a>
               </td>
             </tr>
           </tbody>
         </table>
+      </article>
+
+      <article id="import-data">
+        <header>
+          <hgroup>
+            <h2>Import data</h2>
+            {importDataResult == null ? (
+              <p>
+                Import your account data from CSV files, which are exported from
+                other Hollo or Mastodon instances. The existing data won't be
+                overwritten, but the new data will be <strong>merged</strong>{" "}
+                with the existing data.
+              </p>
+            ) : (
+              <p>{importDataResult}</p>
+            )}
+          </hgroup>
+        </header>
+        <form
+          method="post"
+          action="migrate/import"
+          encType="multipart/form-data"
+          onsubmit={`
+            const [submit] = this.getElementsByTagName('button');
+            submit.disabled = true;
+            submit.textContent = 'Importing… it may take a while…';
+          `}
+        >
+          <fieldset class="grid">
+            <label>
+              Category
+              <select name="category">
+                <option value="following_accounts">Follows</option>
+                <option value="lists">Lists</option>
+                <option value="muted_accounts">Muted accounts</option>
+                <option value="blocked_accounts">Blocked accounts</option>
+                <option value="bookmarks">Bookmarks</option>
+              </select>
+              <small>The category of the data you want to import.</small>
+            </label>
+            <label>
+              CSV file
+              <input type="file" name="file" accept=".csv" />
+              <small>
+                A CSV file exported from other Hollo or Mastodon instances.
+              </small>
+            </label>
+          </fieldset>
+          <button type="submit">Import</button>
+        </form>
       </article>
     </DashboardLayout>,
   );
