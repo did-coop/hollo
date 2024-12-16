@@ -16,12 +16,12 @@ import { getPostRelations, serializePost } from "../../entities/status";
 import { federation } from "../../federation";
 import { persistAccount } from "../../federation/account";
 import { persistPost } from "../../federation/post";
+import { loginRequired } from "../../login";
 import { type Variables, scopeRequired, tokenRequired } from "../../oauth";
 import { type Account, accounts, posts } from "../../schema";
 import { postMedia } from "../v1/media";
 import { exportController, importController } from "./controllers/account";
 import instance from "./instance";
-import { loginRequired } from "../../login";
 
 const app = new Hono<{ Variables: Variables }>();
 

@@ -1,6 +1,5 @@
 import { importActorProfile } from "@interop/wallet-export-ts";
 import { and, eq } from "drizzle-orm";
-import type { Context } from "hono";
 import db from "../db";
 import * as schema from "../schema";
 
@@ -11,7 +10,7 @@ export class AccountImporter {
     this.actorId = actorId;
   }
 
-  async importData(tarBuffer: Buffer, c: Context) {
+  async importData(tarBuffer: Buffer) {
     const importedData = await importActorProfile(tarBuffer);
 
     try {
@@ -64,7 +63,6 @@ export class AccountImporter {
       console.error("Error importing account profile:", { error });
       throw error;
     }
-
   }
 
   async importIfExists<T>(
