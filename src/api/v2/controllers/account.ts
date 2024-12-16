@@ -48,19 +48,25 @@ export const importController = async (c: Context) => {
 
     // Pass the buffer to the importer
     const importer = new AccountImporter(actorId);
-    await importer.importData(buffer, c);
+    await importer.importData(buffer);
 
-    return c.html("<script>alert('Data imported successfully!');</script>"); 
-  } catch (error: any) {
+    return c.html("<script>alert('Data imported successfully!');</script>");
+  } catch (error) {
     logger.error("Account import failed:", { error });
-    if (error.message && error.message.toLowerCase().includes("mismatch")) {
-      return c.html(`
+    if (
+      error instanceof Error &&
+      error.message.toLowerCase().includes("mismatch")
+    ) {
+      return c.html(
+        `
         <script>
           alert('Invalid file format. Please upload a valid account export file.');
           window.history.back();
         </script>
 
-      `, 400); // Send 400 or relevant status code
+      `,
+        400,
+      );
     }
     return c.json({ error: "Import failed" }, 500);
   }
