@@ -62,10 +62,9 @@ export class AccountImporter {
       );
     } catch (error) {
       console.error("Error importing account profile:", { error });
-      return c.json({ error: "Failed to import account profile" }, 500);
+      throw error;
     }
 
-    return c.json({ message: "Data imported successfully" }, 200);
   }
 
   async importIfExists<T>(
@@ -73,8 +72,11 @@ export class AccountImporter {
     key: string,
     handler: (item: T) => Promise<void>,
   ) {
-    if (key in data) {
+    try {
       await handler(data[key] as T);
+    } catch (error) {
+      console.warn(`Failed to import key ${key}:`, error);
+      throw error; // Or handle this more gracefully if partial success is acceptable
     }
   }
 
