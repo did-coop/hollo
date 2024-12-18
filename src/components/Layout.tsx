@@ -41,8 +41,6 @@ export function Layout(props: PropsWithChildren<LayoutProps>) {
         ))}
         <link rel="stylesheet" href="/public/pico.min.css" />
         <link rel="stylesheet" href="/public/pico.colors.min.css" />
-        <link rel="stylesheet" href="/public/pico.min.css" />
-        <link rel="stylesheet" href="/public/pico.colors.min.css" />
         <link
           rel="icon"
           type="image/png"

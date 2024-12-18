@@ -23,6 +23,7 @@ import { type Account, accounts, posts } from "../../schema";
 import { postMedia } from "../v1/media";
 import { exportController, importController } from "./controllers/account";
 import instance from "./instance";
+import { loginRequired } from "../../login";
 
 const app = new Hono<{ Variables: Variables }>();
 
@@ -34,7 +35,6 @@ app.post("/:actorId/accountExport", loginRequired, exportController);
 
 app.post(":actorId/accountImport", loginRequired, importController);
 
-app.post(":actorId/accountImport",loginRequired, importController);
 
 app.get(
   "/search",

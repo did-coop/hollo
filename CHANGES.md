@@ -2,7 +2,7 @@
 
 ## Version 0.4.0
 
-Released on October 27, 2024.
+To be released.
 
 - Now you can import and export your data from the administration dashboard
   in CSV format: follows, lists, accounts you muted, accounts you blocked,
@@ -94,14 +94,6 @@ Released on November 4, 2024.
 
 ## Version 0.2.0
 
-Released on November 4, 2024.
-
-## Version 0.2.1
-
-To be released.
-
-## Version 0.2.0
-
 Released on November 3, 2024.
 
 - Dropped support for Redis.
@@ -140,9 +132,12 @@ Released on November 3, 2024.
 - Added `PORT` and `ALLOW_PRIVATE_ADDRESS` environment variables.
   [[#53] by Helge Krueger]
 
+- On creating a new account, the user now can choose to follow the official
+  Hollo account.
+
 - Added a favicon.
 
-- Added `LISTEN_PORT` and `ALLOW_PRIVATE_ADDRESS` environment variables.
+- Added `PORT` and `ALLOW_PRIVATE_ADDRESS` environment variables.
   [[#53] by Helge Krueger]
 
 [#38]: https://github.com/dahlia/hollo/issues/38

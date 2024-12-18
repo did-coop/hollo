@@ -56,9 +56,6 @@ const BEHIND_PROXY = process.env["BEHIND_PROXY"] === "true";
 // biome-ignore lint/complexity/useLiteralKeys: tsc complains about this (TS4111)
 const PORT = Number.parseInt(process.env["PORT"] ?? "3000", 10);
 
-// biome-ignore lint/complexity/useLiteralKeys: tsc complains about this (TS4111)
-const PORT = Number.parseInt(process.env["PORT"] ?? "3000", 10);
-
 if (!Number.isInteger(PORT)) {
   console.error("Invalid PORT: must be an integer");
   process.exit(1);
