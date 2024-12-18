@@ -7,11 +7,8 @@ import {
   type DocumentLoader,
   Emoji,
   Follow,
-  Follow,
   Link,
   PropertyValue,
-  Reject,
-  Undo,
   Reject,
   Undo,
   formatSemVer,
@@ -32,9 +29,9 @@ import {
 } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
-import { uuidv7 } from "uuidv7-js";
 import * as schema from "../schema";
 import type { NewPinnedPost, Post } from "../schema";
+import { type Uuid, uuidv7 } from "../uuid";
 import { iterateCollection } from "./collection";
 import { toDate } from "./date";
 import {
@@ -43,11 +40,6 @@ import {
   persistSharingPost,
   updatePostStats,
 } from "./post";
-
-export const REMOTE_ACTOR_FETCH_POSTS = Number.parseInt(
-  // biome-ignore lint/complexity/useLiteralKeys: tsc rants about this (TS4111)
-  process.env["REMOTE_ACTOR_FETCH_POSTS"] ?? "10",
-);
 
 export const REMOTE_ACTOR_FETCH_POSTS = Number.parseInt(
   // biome-ignore lint/complexity/useLiteralKeys: tsc rants about this (TS4111)
@@ -300,7 +292,7 @@ export async function updateAccountStats(
     typeof schema,
     ExtractTablesWithRelations<typeof schema>
   >,
-  account: { id: string } | { iri: string },
+  account: { id: Uuid } | { iri: string },
 ): Promise<void> {
   const id =
     "id" in account
