@@ -100,6 +100,12 @@ export class AccountImporter {
       "orderedItems" in (data[key] as Record<string, unknown>)
     ) {
       const orderedItems = (data[key] as { orderedItems: T[] }).orderedItems;
+      if (!Array.isArray(orderedItems)) {
+        throw new Error("orderedItems is not an array");
+      }
+      if (orderedItems.length === 0) {
+        return;
+      }
       await Promise.all(orderedItems.map(handler));
     }
   }
