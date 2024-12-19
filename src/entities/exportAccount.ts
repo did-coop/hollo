@@ -74,23 +74,35 @@ export class AccountExporter {
       id: "following_accounts.json",
       type: "OrderedCollection",
       orderedItems: followingAccounts.map((account) => ({
+        followingId: this.actorId,
         account: this.normalizeUrl(`accounts/${account.followingId}`),
-        showBoosts: account.shares,
-        notifyOnNewPosts: account.notify,
-        language: account.languages ?? null,
+        created: new Date(account.created),
+        approved: account.approved ? new Date(account.approved) : null,
+        iri: account.iri,
+        shares: account.shares,
+        notify: account.notify,
+        languages: account.languages,
+        followerId: account.followerId,
       })),
     };
   }
 
   serializeFollowers(followers: schema.Follow[]) {
+
     return {
       "@context": "https://www.w3.org/ns/activitystreams",
       id: "followers.json",
       type: "OrderedCollection",
       orderedItems: followers.map((follower) => ({
         account: this.normalizeUrl(`accounts/${follower.followerId}`),
-        followedSince: follower.created,
-        language: follower.languages,
+        created: new Date(follower.created),
+        approved: follower.approved ? new Date(follower.approved) : null,
+        iri: follower.iri,
+        shares: follower.shares,
+        notify: follower.notify,
+        languages: follower.languages,
+        followerId: this.actorId,
+        followingId: follower.followingId,
       })),
     };
   }

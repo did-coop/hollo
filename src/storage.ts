@@ -84,7 +84,7 @@ switch (DRIVE_DISK) {
     driver = new FSDriver({
       location: isAbsolute(assetPath)
         ? assetPath
-        : join(dirname(import.meta.dir), assetPath),
+        : join(dirname(import.meta.url), assetPath),
       visibility: "public",
     });
     break;
