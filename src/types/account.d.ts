@@ -1,6 +1,13 @@
 // Define an interface for ActorProfile
 interface ActorProfile {
   id: string;
+  type:
+    | SQL<unknown>
+    | "Application"
+    | "Group"
+    | "Organization"
+    | "Person"
+    | "Service";
   acct: string; // Maps to `handle` in the schema
   display_name: string; // Maps to `name` in the schema
   locked: boolean; // Maps to `protected` in the schema
