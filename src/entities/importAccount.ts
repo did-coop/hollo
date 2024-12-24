@@ -20,11 +20,11 @@ export class AccountImporter {
         "activitypub/actor.json",
         this.importAccount.bind(this),
       );
-      // await this.importCollection(
-      //   importedData,
-      //   'activitypub/outbox.json',
-      //   this.importOutbox.bind(this)
-      // );
+      await this.importCollection(
+        importedData,
+        "activitypub/outbox.json",
+        this.importOutbox.bind(this),
+      );
       // await this.importOrderedItems(
       //   importedData,
       //   "activitypub/likes.json",
@@ -147,7 +147,7 @@ export class AccountImporter {
         id: newActorId,
         iri: profileData.url,
         type: profileData.type,
-        handle: `${profileData.acct}_${newActorId.slice(0, 8)}`,
+        handle: `${profileData.acct}`,
         name: profileData.display_name,
         protected: profileData.locked,
         bioHtml: profileData.note,
@@ -196,41 +196,39 @@ export class AccountImporter {
     });
   }
 
-  async importOutbox(outbox: Post[]) {
-    for (const post of outbox) {
-      // Generate a new unique message ID
-      // const newMessageId = cuuid.generate(post);
-      const newMessageId = uuidv7();
+  async importOutbox(post: Post) {
+    // Generate a new unique message ID
+    // const newMessageId = cuuid.generate(post);
+    const newMessageId = uuidv7();
 
-      const postData = {
-        id: newMessageId,
-        iri: post.uri,
-        type: post.type,
-        accountId: this.actorId, // The new actor ID from the account import step or the old ID if the account was not imported
-        createdAt: new Date(post.created_at),
-        inReplyToId: post.in_reply_to_id,
-        sensitive: post.sensitive,
-        spoilerText: post.spoiler_text,
-        visibility: post.visibility,
-        language: post.language,
-        url: post.url,
-        repliesCount: post.replies_count,
-        reblogsCount: post.reblogs_count,
-        favouritesCount: post.favourites_count,
-        favourited: post.favourited,
-        reblogged: post.reblogged,
-        muted: post.muted,
-        bookmarked: post.bookmarked,
-        pinned: post.pinned,
-        contentHtml: post.content,
-        quoteId: post.quote_id,
-      };
+    const postData = {
+      id: newMessageId,
+      iri: post.uri,
+      type: post.type,
+      accountId: this.actorId, // The new actor ID from the account import step or the old ID if the account was not imported
+      createdAt: new Date(post.created_at),
+      inReplyToId: post.in_reply_to_id,
+      sensitive: post.sensitive,
+      spoilerText: post.spoiler_text,
+      visibility: post.visibility,
+      language: post.language,
+      url: post.url,
+      repliesCount: post.replies_count,
+      reblogsCount: post.reblogs_count,
+      favouritesCount: post.favourites_count,
+      favourited: post.favourited,
+      reblogged: post.reblogged,
+      muted: post.muted,
+      bookmarked: post.bookmarked,
+      pinned: post.pinned,
+      contentHtml: post.content,
+      quoteId: post.quote_id,
+    };
 
-      // Add the new post
-      await db.insert(schema.posts).values(postData);
+    // Add the new post
+    await db.insert(schema.posts).values(postData);
 
-      //? new outbox = the existing outbox + the imported posts
-    }
+    //? new outbox = the existing outbox + the imported posts
   }
 
   async importBookmark(bookmark: Bookmark) {
