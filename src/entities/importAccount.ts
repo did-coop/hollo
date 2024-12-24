@@ -1,7 +1,8 @@
 import { importActorProfile } from "@interop/wallet-export-ts";
-import { and, eq } from "drizzle-orm";
+import { and, eq, SQL } from "drizzle-orm";
 import db from "../db";
 import * as schema from "../schema";
+import { uuidv7 } from "../uuid";
 
 export class AccountImporter {
   actorId: string;
@@ -19,46 +20,46 @@ export class AccountImporter {
         "activitypub/actor.json",
         this.importAccount.bind(this),
       );
-      await this.importCollection(
-        importedData,
-        "activitypub/outbox.json",
-        this.importOutbox.bind(this),
-      );
-      await this.importOrderedItems(
-        importedData,
-        "activitypub/likes.json",
-        this.importLike.bind(this),
-      );
-      await this.importOrderedItems(
-        importedData,
-        "activitypub/blocked_accounts.json",
-        this.importBlock.bind(this),
-      );
-      await this.importOrderedItems(
-        importedData,
-        "activitypub/muted_accounts.json",
-        this.importMute.bind(this),
-      );
-      await this.importOrderedItems(
-        importedData,
-        "activitypub/followers.json",
-        this.importFollower.bind(this),
-      );
-      await this.importOrderedItems(
-        importedData,
-        "activitypub/following.json",
-        this.importFollowing.bind(this),
-      );
-      await this.importOrderedItems(
-        importedData,
-        "activitypub/bookmarks.json",
-        this.importBookmark.bind(this),
-      );
-      await this.importCollection(
-        importedData,
-        "activitypub/lists.json",
-        this.importList.bind(this),
-      );
+      // await this.importCollection(
+      //   importedData,
+      //   'activitypub/outbox.json',
+      //   this.importOutbox.bind(this)
+      // );
+      // await this.importOrderedItems(
+      //   importedData,
+      //   "activitypub/likes.json",
+      //   this.importLike.bind(this),
+      // );
+      // await this.importOrderedItems(
+      //   importedData,
+      //   "activitypub/blocked_accounts.json",
+      //   this.importBlock.bind(this),
+      // );
+      // await this.importOrderedItems(
+      //   importedData,
+      //   "activitypub/muted_accounts.json",
+      //   this.importMute.bind(this),
+      // );
+      // await this.importOrderedItems(
+      //   importedData,
+      //   "activitypub/followers.json",
+      //   this.importFollower.bind(this),
+      // );
+      // await this.importOrderedItems(
+      //   importedData,
+      //   "activitypub/following.json",
+      //   this.importFollowing.bind(this),
+      // );
+      // await this.importOrderedItems(
+      //   importedData,
+      //   "activitypub/bookmarks.json",
+      //   this.importBookmark.bind(this),
+      // );
+      // await this.importCollection(
+      //   importedData,
+      //   "activitypub/lists.json",
+      //   this.importList.bind(this),
+      // );
     } catch (error) {
       console.error("Error importing account profile:", { error });
       throw error;
@@ -111,85 +112,124 @@ export class AccountImporter {
   }
 
   async importAccount(profileData: ActorProfile) {
-    const accountData = {
-      iri: profileData.url,
-      handle: profileData.acct,
-      name: profileData.display_name,
-      protected: profileData.locked,
-      bioHtml: profileData.note,
-      url: profileData.url,
-      avatarUrl: profileData.avatar,
-      coverUrl: profileData.header,
-      followersCount: profileData.followers_count,
-      followingCount: profileData.following_count,
-      postsCount: profileData.statuses_count,
-      fieldHtmls: profileData.fields.reduce(
-        (acc, field) => {
-          acc[field.name] = field.value;
-          return acc;
-        },
-        {} as Record<string, string>,
-      ),
-      emojis: profileData.emojis.reduce(
-        (acc, emoji) => {
-          acc[emoji.shortcode] = emoji.url;
-          return acc;
-        },
-        {} as Record<string, string>,
-      ),
-      published: new Date(profileData.created_at),
-    };
+    const newActorId = uuidv7();
+    let instanceHost = new URL(profileData.url).hostname;
 
-    const existingAccount = await db.query.accounts.findFirst({
-      where: eq(schema.accounts.id, profileData.id),
+    await db.transaction(async (tx) => {
+      const existingInstance = await tx.query.instances.findFirst({
+        where: eq(schema.instances.host, instanceHost),
+      });
+      if (!existingInstance) {
+        // Insert instance
+        await tx.insert(schema.instances).values({ host: instanceHost });
+      }
+      // Get existing owner
+      const existingOwner = await tx
+        .select()
+        .from(schema.accountOwners)
+        .where(eq(schema.accountOwners.id, this.actorId))
+        .then((rows) => rows[0]);
+
+      if (!existingOwner) {
+        throw new Error(`Account owner not found: ${this.actorId}`);
+      }
+
+      // Clean up existing records
+      await tx
+        .delete(schema.bookmarks)
+        .where(eq(schema.bookmarks.accountOwnerId, this.actorId));
+      await tx
+        .delete(schema.accounts)
+        .where(eq(schema.accounts.id, this.actorId));
+
+      // Insert account
+      const accountData = {
+        id: newActorId,
+        iri: profileData.url,
+        type: profileData.type,
+        handle: `${profileData.acct}_${newActorId.slice(0, 8)}`,
+        name: profileData.display_name,
+        protected: profileData.locked,
+        bioHtml: profileData.note,
+        url: profileData.url,
+        avatarUrl: profileData.avatar,
+        coverUrl: profileData.header,
+        inboxUrl: `${profileData.url}/inbox`,
+        followersCount: profileData.followers_count,
+        followingCount: profileData.following_count,
+        postsCount: profileData.statuses_count,
+        fieldHtmls: profileData.fields.reduce(
+          (acc, f) => ({ ...acc, [f.name]: f.value }),
+          {},
+        ),
+        emojis: profileData.emojis.reduce(
+          (acc, e) => ({ ...acc, [e.shortcode]: e.url }),
+          {},
+        ),
+        published: new Date(profileData.created_at),
+        instanceHost,
+      };
+
+      await tx
+        .delete(schema.accountOwners)
+        .where(eq(schema.accountOwners.id, this.actorId));
+      await tx.insert(schema.accounts).values(accountData);
+
+      // Insert owner
+      const ownerData = {
+        id: newActorId,
+        handle: existingOwner.handle,
+        rsaPrivateKeyJwk: existingOwner.rsaPrivateKeyJwk,
+        rsaPublicKeyJwk: existingOwner.rsaPublicKeyJwk,
+        ed25519PrivateKeyJwk: existingOwner.ed25519PrivateKeyJwk,
+        ed25519PublicKeyJwk: existingOwner.ed25519PublicKeyJwk,
+        fields: existingOwner.fields,
+        bio: existingOwner.bio,
+        followedTags: existingOwner.followedTags,
+        visibility: existingOwner.visibility,
+        language: existingOwner.language,
+      };
+
+      await tx.insert(schema.accountOwners).values(ownerData);
+
+      this.actorId = newActorId;
     });
-
-    if (!existingAccount || this.actorId !== profileData.id) {
-      throw new Error("Account mismatch or not found");
-    }
-
-    await db
-      .update(schema.accounts)
-      .set(accountData)
-      .where(eq(schema.accounts.id, profileData.id));
   }
 
-  async importOutbox(post: Post) {
-    const postData = {
-      id: post.id,
-      iri: post.uri,
-      type: post.type,
-      accountId: this.actorId,
-      createdAt: new Date(post.created_at),
-      inReplyToId: post.in_reply_to_id,
-      sensitive: post.sensitive,
-      spoilerText: post.spoiler_text,
-      visibility: post.visibility,
-      language: post.language,
-      url: post.url,
-      repliesCount: post.replies_count,
-      reblogsCount: post.reblogs_count,
-      favouritesCount: post.favourites_count,
-      favourited: post.favourited,
-      reblogged: post.reblogged,
-      muted: post.muted,
-      bookmarked: post.bookmarked,
-      pinned: post.pinned,
-      contentHtml: post.content,
-      quoteId: post.quote_id,
-    };
+  async importOutbox(outbox: Post[]) {
+    for (const post of outbox) {
+      // Generate a new unique message ID
+      // const newMessageId = cuuid.generate(post);
+      const newMessageId = uuidv7();
 
-    const existingPost = await db.query.posts.findFirst({
-      where: eq(schema.posts.id, post.id),
-    });
+      const postData = {
+        id: newMessageId,
+        iri: post.uri,
+        type: post.type,
+        accountId: this.actorId, // The new actor ID from the account import step or the old ID if the account was not imported
+        createdAt: new Date(post.created_at),
+        inReplyToId: post.in_reply_to_id,
+        sensitive: post.sensitive,
+        spoilerText: post.spoiler_text,
+        visibility: post.visibility,
+        language: post.language,
+        url: post.url,
+        repliesCount: post.replies_count,
+        reblogsCount: post.reblogs_count,
+        favouritesCount: post.favourites_count,
+        favourited: post.favourited,
+        reblogged: post.reblogged,
+        muted: post.muted,
+        bookmarked: post.bookmarked,
+        pinned: post.pinned,
+        contentHtml: post.content,
+        quoteId: post.quote_id,
+      };
 
-    if (existingPost) {
-      await db
-        .update(schema.posts)
-        .set(postData)
-        .where(eq(schema.posts.id, post.id));
-    } else {
+      // Add the new post
       await db.insert(schema.posts).values(postData);
+
+      //? new outbox = the existing outbox + the imported posts
     }
   }
 

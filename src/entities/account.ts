@@ -25,6 +25,7 @@ export function serializeAccount(
     id: account.id,
     username,
     acct,
+    type: account.type,
     display_name: account.name,
     locked: account.protected,
     bot: account.type === "Application" || account.type === "Service",

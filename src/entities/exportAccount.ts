@@ -88,7 +88,6 @@ export class AccountExporter {
   }
 
   serializeFollowers(followers: schema.Follow[]) {
-
     return {
       "@context": "https://www.w3.org/ns/activitystreams",
       id: "followers.json",
@@ -106,7 +105,6 @@ export class AccountExporter {
       })),
     };
   }
-  
 
   async exportData(c: Context) {
     try {
