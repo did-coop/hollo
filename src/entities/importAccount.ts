@@ -1,8 +1,11 @@
 import { importActorProfile } from "@interop/wallet-export-ts";
-import { and, eq, SQL } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import db from "../db";
 import * as schema from "../schema";
-import { uuidv7 } from "../uuid";
+import CUUIDSHA256 from "cuuid-sha-256";
+import { canonicalize } from "json-canonicalize";
+
+const NAMESPACE = "bd97808c-95bb-8be7-84e9-89db07656caf";
 
 export class AccountImporter {
   actorId: string;
@@ -112,7 +115,26 @@ export class AccountImporter {
   }
 
   async importAccount(profileData: ActorProfile) {
-    const newActorId = uuidv7();
+    const accountDataCanonical = canonicalize({
+      url: profileData.url,
+      handle: profileData.acct,
+      name: profileData.display_name,
+    });
+
+    const cuuid = new CUUIDSHA256({
+      namespace: NAMESPACE,
+      name: accountDataCanonical,
+    });
+
+    const newActorId = await cuuid.toString();
+    const isExistingAccount = await db.query.accounts.findFirst({
+      where: eq(schema.accounts.id, newActorId),
+    });
+    if (isExistingAccount) {
+      console.warn(`Account with ID ${newActorId} already exists, skipping`);
+      return;
+    }
+
     let instanceHost = new URL(profileData.url).hostname;
 
     await db.transaction(async (tx) => {
@@ -120,10 +142,9 @@ export class AccountImporter {
         where: eq(schema.instances.host, instanceHost),
       });
       if (!existingInstance) {
-        // Insert instance
         await tx.insert(schema.instances).values({ host: instanceHost });
       }
-      // Get existing owner
+
       const existingOwner = await tx
         .select()
         .from(schema.accountOwners)
@@ -134,7 +155,6 @@ export class AccountImporter {
         throw new Error(`Account owner not found: ${this.actorId}`);
       }
 
-      // Clean up existing records
       await tx
         .delete(schema.bookmarks)
         .where(eq(schema.bookmarks.accountOwnerId, this.actorId));
@@ -142,12 +162,11 @@ export class AccountImporter {
         .delete(schema.accounts)
         .where(eq(schema.accounts.id, this.actorId));
 
-      // Insert account
       const accountData = {
         id: newActorId,
         iri: profileData.url,
         type: profileData.type,
-        handle: `${profileData.acct}`,
+        handle: profileData.acct,
         name: profileData.display_name,
         protected: profileData.locked,
         bioHtml: profileData.note,
@@ -175,7 +194,6 @@ export class AccountImporter {
         .where(eq(schema.accountOwners.id, this.actorId));
       await tx.insert(schema.accounts).values(accountData);
 
-      // Insert owner
       const ownerData = {
         id: newActorId,
         handle: existingOwner.handle,
@@ -191,21 +209,36 @@ export class AccountImporter {
       };
 
       await tx.insert(schema.accountOwners).values(ownerData);
-
-      this.actorId = newActorId;
     });
+    this.actorId = newActorId;
   }
 
   async importOutbox(post: Post) {
-    // Generate a new unique message ID
-    // const newMessageId = cuuid.generate(post);
-    const newMessageId = uuidv7();
+    const postDataCanonical = canonicalize({
+      uri: post.uri,
+      createdAt: post.created_at,
+      accountId: this.actorId,
+    });
+
+    const cuuid = new CUUIDSHA256({
+      namespace: NAMESPACE,
+      name: postDataCanonical,
+    });
+
+    const newMessageId = await cuuid.toString();
+    const isExistingPost = await db.query.posts.findFirst({
+      where: eq(schema.posts.id, newMessageId),
+    });
+    if (isExistingPost) {
+      console.warn(`Post with ID ${newMessageId} already exists, skipping`);
+      return;
+    }
 
     const postData = {
       id: newMessageId,
       iri: post.uri,
       type: post.type,
-      accountId: this.actorId, // The new actor ID from the account import step or the old ID if the account was not imported
+      accountId: this.actorId,
       createdAt: new Date(post.created_at),
       inReplyToId: post.in_reply_to_id,
       sensitive: post.sensitive,
@@ -226,9 +259,10 @@ export class AccountImporter {
     };
 
     // Add the new post
-    await db.insert(schema.posts).values(postData);
-
-    //? new outbox = the existing outbox + the imported posts
+    // curent state => outbox = the existing outbox + the imported ones with diffrent ids
+    await db.insert(schema.posts).values(postData).onConflictDoNothing({
+      target: schema.posts.iri,
+    });
   }
 
   async importBookmark(bookmark: Bookmark) {
