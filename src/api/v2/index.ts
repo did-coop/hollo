@@ -33,7 +33,6 @@ app.post("/:actorId/accountExport", loginRequired, exportController);
 
 app.post(":actorId/accountImport", loginRequired, importController);
 
-
 app.get(
   "/search",
   tokenRequired,

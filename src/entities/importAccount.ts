@@ -5,8 +5,6 @@ import * as schema from "../schema";
 import CUUIDSHA256 from "cuuid-sha-256";
 import { canonicalize } from "json-canonicalize";
 
-const NAMESPACE = "bd97808c-95bb-8be7-84e9-89db07656caf";
-
 export class AccountImporter {
   actorId: string;
 
@@ -115,6 +113,7 @@ export class AccountImporter {
   }
 
   async importAccount(profileData: ActorProfile) {
+    // Generate a new account ID using cuuid
     const accountDataCanonical = canonicalize({
       url: profileData.url,
       handle: profileData.acct,
@@ -122,16 +121,22 @@ export class AccountImporter {
     });
 
     const cuuid = new CUUIDSHA256({
-      namespace: NAMESPACE,
+      namespace: profileData.id,
       name: accountDataCanonical,
     });
 
-    const newActorId = await cuuid.toString();
+    const newAccountId = await cuuid.toString();
+    console.log(
+      "🚀 ~ AccountImporter ~ importAccount ~ newAccountId:",
+      newAccountId,
+    );
+
+    // Check if the new account ID already exists
     const isExistingAccount = await db.query.accounts.findFirst({
-      where: eq(schema.accounts.id, newActorId),
+      where: eq(schema.accounts.id, newAccountId),
     });
     if (isExistingAccount) {
-      console.warn(`Account with ID ${newActorId} already exists, skipping`);
+      console.warn(`Account with ID ${newAccountId} already exists, skipping`);
       return;
     }
 
@@ -155,47 +160,30 @@ export class AccountImporter {
         throw new Error(`Account owner not found: ${this.actorId}`);
       }
 
-      await tx
-        .delete(schema.bookmarks)
-        .where(eq(schema.bookmarks.accountOwnerId, this.actorId));
+      const oldAccount = await tx
+        .select()
+        .from(schema.accounts)
+        .where(eq(schema.accounts.id, this.actorId))
+        .then((rows) => rows[0]);
+      console.log(
+        "🚀 ~ AccountImporter ~ awaitdb.transaction ~ oldAccount:",
+        oldAccount,
+      );
+
       await tx
         .delete(schema.accounts)
         .where(eq(schema.accounts.id, this.actorId));
 
-      const accountData = {
-        id: newActorId,
-        iri: profileData.url,
-        type: profileData.type,
-        handle: profileData.acct,
-        name: profileData.display_name,
-        protected: profileData.locked,
-        bioHtml: profileData.note,
-        url: profileData.url,
-        avatarUrl: profileData.avatar,
-        coverUrl: profileData.header,
-        inboxUrl: `${profileData.url}/inbox`,
-        followersCount: profileData.followers_count,
-        followingCount: profileData.following_count,
-        postsCount: profileData.statuses_count,
-        fieldHtmls: profileData.fields.reduce(
-          (acc, f) => ({ ...acc, [f.name]: f.value }),
-          {},
-        ),
-        emojis: profileData.emojis.reduce(
-          (acc, e) => ({ ...acc, [e.shortcode]: e.url }),
-          {},
-        ),
-        published: new Date(profileData.created_at),
-        instanceHost,
-      };
-
       await tx
         .delete(schema.accountOwners)
         .where(eq(schema.accountOwners.id, this.actorId));
-      await tx.insert(schema.accounts).values(accountData);
+
+      // Update the old account's ID to the new account ID
+      oldAccount.id = newAccountId;
+      await tx.insert(schema.accounts).values(oldAccount);
 
       const ownerData = {
-        id: newActorId,
+        id: newAccountId,
         handle: existingOwner.handle,
         rsaPrivateKeyJwk: existingOwner.rsaPrivateKeyJwk,
         rsaPublicKeyJwk: existingOwner.rsaPublicKeyJwk,
@@ -210,59 +198,95 @@ export class AccountImporter {
 
       await tx.insert(schema.accountOwners).values(ownerData);
     });
-    this.actorId = newActorId;
+
+    // Update the actorId to the new account ID
+    this.actorId = newAccountId;
+    console.log(
+      "🚀 ~ AccountImporter ~ importAccount ~ this.actorId: [1]",
+      this.actorId,
+    );
   }
 
   async importOutbox(post: Post) {
-    const postDataCanonical = canonicalize({
-      uri: post.uri,
-      createdAt: post.created_at,
-      accountId: this.actorId,
-    });
+    try {
+      // Validate the post object
+      if (!post.url || !post.type || !post.created_at || !post.content) {
+        console.error("Skipping post due to missing required fields:", post);
+        return;
+      }
 
-    const cuuid = new CUUIDSHA256({
-      namespace: NAMESPACE,
-      name: postDataCanonical,
-    });
+      // Generate a new post ID using cuuid
+      const postDataCanonical = canonicalize({
+        uri: post.url, // Use post.url instead of post.iri
+        createdAt: post.created_at,
+        accountId: this.actorId, // Use the new account ID
+      });
 
-    const newMessageId = await cuuid.toString();
-    const isExistingPost = await db.query.posts.findFirst({
-      where: eq(schema.posts.id, newMessageId),
-    });
-    if (isExistingPost) {
-      console.warn(`Post with ID ${newMessageId} already exists, skipping`);
-      return;
+      const cuuid = new CUUIDSHA256({
+        namespace: post.id,
+        name: postDataCanonical,
+      });
+
+      const newPostId = await cuuid.toString();
+
+      // Log the post URL for debugging
+      console.log("🚀 ~ AccountImporter ~ importOutbox ~ post.url:", post.url);
+
+      // Check if the post already exists
+      const isExistingPost = await db.query.posts.findFirst({
+        where: eq(schema.posts.iri, post.url), // Check by URL (iri)
+      });
+
+      if (isExistingPost) {
+        console.warn(
+          `Post with URL ${post.url} already exists, updating instead of skipping`,
+        );
+      }
+
+      const postData = {
+        id: newPostId,
+        iri: post.url,
+        type: post.type,
+        accountId: this.actorId,
+        createdAt: new Date(post.created_at),
+        inReplyToId: post.in_reply_to_id || null,
+        sensitive: post.sensitive || false,
+        spoilerText: post.spoiler_text || "",
+        visibility: post.visibility || "public",
+        language: post.language || "en",
+        url: post.url,
+        repliesCount: post.replies_count || 0,
+        reblogsCount: post.reblogs_count || 0,
+        favouritesCount: post.favourites_count || 0,
+        favourited: post.favourited || false,
+        reblogged: post.reblogged || false,
+        muted: post.muted || false,
+        bookmarked: post.bookmarked || false,
+        pinned: post.pinned || false,
+        contentHtml: post.content,
+        quoteId: post.quote_id || null,
+      };
+
+      // Insert or update the post
+      await db
+        .insert(schema.posts)
+        .values(postData)
+        .onConflictDoUpdate({
+          target: schema.posts.iri,
+          set: {
+            accountId: this.actorId,
+            contentHtml: post.content,
+          },
+        });
+
+      console.log(
+        "🚀 ~ AccountImporter ~ importOutbox ~ post imported/updated successfully:",
+        newPostId,
+      );
+    } catch (error) {
+      console.error("Error importing post:", { error });
+      throw error; // Re-throw the error to trigger transaction rollback
     }
-
-    const postData = {
-      id: newMessageId,
-      iri: post.uri,
-      type: post.type,
-      accountId: this.actorId,
-      createdAt: new Date(post.created_at),
-      inReplyToId: post.in_reply_to_id,
-      sensitive: post.sensitive,
-      spoilerText: post.spoiler_text,
-      visibility: post.visibility,
-      language: post.language,
-      url: post.url,
-      repliesCount: post.replies_count,
-      reblogsCount: post.reblogs_count,
-      favouritesCount: post.favourites_count,
-      favourited: post.favourited,
-      reblogged: post.reblogged,
-      muted: post.muted,
-      bookmarked: post.bookmarked,
-      pinned: post.pinned,
-      contentHtml: post.content,
-      quoteId: post.quote_id,
-    };
-
-    // Add the new post
-    // curent state => outbox = the existing outbox + the imported ones with diffrent ids
-    await db.insert(schema.posts).values(postData).onConflictDoNothing({
-      target: schema.posts.iri,
-    });
   }
 
   async importBookmark(bookmark: Bookmark) {
