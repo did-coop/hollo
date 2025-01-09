@@ -1,4 +1,7 @@
-import { importActorProfile, validateExportStream } from "@interop/wallet-export-ts";
+import {
+  importActorProfile,
+  validateExportStream,
+} from "@interop/wallet-export-ts";
 import { and, eq } from "drizzle-orm";
 import db from "../db";
 import * as schema from "../schema";
@@ -17,19 +20,18 @@ export class AccountImporter {
     const importStream = () => Readable.from(tarBuffer);
     const validateStream = () => Readable.from(tarBuffer);
     const importedData = await importActorProfile(importStream());
-    
+
     console.log(typeof validateExportStream); // Should log "function"
 
     try {
-      const validationResult = await validateExportStream(validateStream())
+      const validationResult = await validateExportStream(validateStream());
       if (!validationResult.valid) {
-        throw new Error(
-            validationResult.errors.map(
-              (error) => `${error}`,
-            ).join("\n"),
-          );
+        throw new Error("Invalid export stream");
       }
-      console.log("🚀 ~ AccountImporter ~ importData ~ validationResult:", validationResult)
+      console.log(
+        "🚀 ~ AccountImporter ~ importData ~ validationResult:",
+        validationResult,
+      );
       await this.importIfExists(
         importedData,
         "activitypub/actor.json",
