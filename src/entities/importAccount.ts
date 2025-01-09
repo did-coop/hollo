@@ -21,8 +21,15 @@ export class AccountImporter {
     console.log(typeof validateExportStream); // Should log "function"
 
     try {
-      const isvalid = await validateExportStream(validateStream())
-      console.log("🚀 ~ AccountImporter ~ importData ~ isvalid:", isvalid)
+      const validationResult = await validateExportStream(validateStream())
+      if (!validationResult.valid) {
+        throw new Error(
+            validationResult.errors.map(
+              (error) => `${error}`,
+            ).join("\n"),
+          );
+      }
+      console.log("🚀 ~ AccountImporter ~ importData ~ validationResult:", validationResult)
       await this.importIfExists(
         importedData,
         "activitypub/actor.json",
