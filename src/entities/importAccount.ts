@@ -1,9 +1,13 @@
-import { importActorProfile } from "@interop/wallet-export-ts";
+import {
+  importActorProfile,
+  validateExportStream,
+} from "@interop/wallet-export-ts";
 import { and, eq } from "drizzle-orm";
 import db from "../db";
 import * as schema from "../schema";
 import CUUIDSHA256 from "cuuid-sha-256";
 import { canonicalize } from "json-canonicalize";
+import { Readable } from "stream";
 
 export class AccountImporter {
   actorId: string;
@@ -13,9 +17,21 @@ export class AccountImporter {
   }
 
   async importData(tarBuffer: Buffer) {
-    const importedData = await importActorProfile(tarBuffer);
+    const importStream = () => Readable.from(tarBuffer);
+    const validateStream = () => Readable.from(tarBuffer);
+    const importedData = await importActorProfile(importStream());
+
+    console.log(typeof validateExportStream); // Should log "function"
 
     try {
+      const validationResult = await validateExportStream(validateStream());
+      if (!validationResult.valid) {
+        throw new Error("Invalid export stream");
+      }
+      console.log(
+        "🚀 ~ AccountImporter ~ importData ~ validationResult:",
+        validationResult,
+      );
       await this.importIfExists(
         importedData,
         "activitypub/actor.json",
