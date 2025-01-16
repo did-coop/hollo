@@ -5,10 +5,71 @@ import db from "../db";
 import * as schema from "../schema";
 import { serializeAccount } from "./account";
 import { serializeList } from "./list";
-import { getPostRelations, serializePost } from "./status";
+import { getPostRelations } from "./status";
 
+const homeUrl = process.env["HOME_URL"] || "http://localhost:3000";
+
+export const serializePost = (post: Post, actor: {id: ActorIdType}) => {
+  const note = {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    id: new URL(post.iri),
+    type: "Note",
+    summary: post.summary || null,
+    inReplyTo: post.replyTargetId ? new URL(`${homeUrl}/posts/${post.replyTargetId}`) : null,
+    published: post.published?.toISOString() || new Date().toISOString(),
+    url: post.url ? new URL(post.url) : new URL(`${homeUrl}/posts/${post.id}`),
+    attributedTo: new URL(`${homeUrl}/accounts/${actor.id}`),
+    to: [new URL("https://www.w3.org/ns/activitystreams#Public")],
+    cc: [new URL(`${homeUrl}/accounts/${actor.id}/followers`)],
+    sensitive: post.sensitive,
+    atomUri: new URL(post.iri),
+    inReplyToAtomUri: post.replyTargetId ? new URL(`${homeUrl}/posts/${post.replyTargetId}`) : null,
+    conversation: `tag:${new URL(homeUrl).hostname},${post.published?.toISOString()}:objectId=${post.id}:objectType=Conversation`,
+    content: post.contentHtml || post.content || "",
+    contentMap: {
+      en: post.contentHtml || post.content || "",
+    },
+    attachment: post.media?.map((media: any) => ({
+      type: "Document",
+      mediaType: media.contentType,
+      url: new URL(media.url),
+    })) || [],
+    tag: post.tags ? Object.entries(post.tags).map(([name, href]) => ({
+      type: "Hashtag",
+      href: new URL(href),
+      name: `#${name}`,
+    })) : [],
+    replies: {
+      id: new URL(`${post.iri}/replies`),
+      type: "Collection",
+      totalItems: post.repliesCount,
+    },
+    likes: {
+      id: new URL(`${post.iri}/likes`),
+      type: "Collection",
+      totalItems: post.likesCount,
+    },
+    shares: {
+      id: new URL(`${post.iri}/shares`),
+      type: "Collection",
+      totalItems: post.sharesCount,
+    },
+  };
+
+  const activity = {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    id: new URL(`${post.iri}/activity`),
+    type: "Create",
+    actor: new URL(`${homeUrl}/accounts/${actor.id}`),
+    published: post.published?.toISOString() || new Date().toISOString(),
+    to: note.to,
+    cc: note.cc,
+    object: note,
+  };
+
+  return activity;
+}
 // biome-ignore lint/complexity/useLiteralKeys: <explanation>
-const homeUrl = process.env["HOME_URL"] || "http://localhost:3000/";
 // Account Exporter class to handle data loading and serialization
 export class AccountExporter {
   actorId: ActorIdType;
@@ -111,9 +172,24 @@ export class AccountExporter {
       if (!account) return c.json({ error: "Actor not found" }, 404);
 
       const postsData = await this.loadPosts();
+      console.log("🚀 ~ AccountExporter ~ exportData ~ postsData:", postsData)
       const serializedPosts = postsData.map((post) =>
-        serializePost(post, { id: account.owner.id }, c.req.url),
-      );
+    serializePost(post as any, {
+      id: this.actorId,
+    }),
+    );
+
+    const outbox = {
+      "@context": [
+        "https://www.w3.org/ns/activitystreams",
+      ],
+      id: new URL(`${c.req.url}/outbox.json`),
+      type: "OrderedCollection",
+      totalItems: serializedPosts.length,
+      orderedItems: serializedPosts,
+    };
+
+    console.log("🚀 ~ AccountExporter ~ exportData ~ outbox:", outbox)
 
       const lists = await this.loadLists();
       const serializedLists = lists.map((list) => serializeList(list));
@@ -133,7 +209,7 @@ export class AccountExporter {
           { ...account, successor: null },
           c.req.url,
         ),
-        outbox: serializedPosts,
+        outbox: outbox,
         lists: serializedLists,
         followers: serializedFollowers,
         followingAccounts: serializedFollowing,
