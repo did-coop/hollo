@@ -63,8 +63,8 @@ importers:
         specifier: ^1.7.6
         version: 1.7.6
       cuuid-sha-256:
-        specifier: ^1.1.3
-        version: 1.1.3
+        specifier: ^1.1.4
+        version: 1.1.4
       drizzle-kit:
         specifier: ^0.30.1
         version: 0.30.1
@@ -1748,8 +1748,8 @@ packages:
   csv-writer-portable@1.7.6:
     resolution: {integrity: sha512-WR1ScJQb0GTx6KhLDGsHkq4i65QtzRmJiLaHLLuzIEdqIwDjJnnsC5hePhXm9WmcgI2VuL6IHExye0Cv7n2Fdw==}
 
-  cuuid-sha-256@1.1.3:
-    resolution: {integrity: sha512-8D2E2idILrbgJOXH+mFqq+YUCkv417WdQgxNGjOfwXtdPG+2DvpK6U5WxdNmoYfumO+k3lpllKxxJ+WFAySQ3w==}
+  cuuid-sha-256@1.1.4:
+    resolution: {integrity: sha512-QXBL/KEu2YYxPc9Y9NwYkUsx7E8J4s5jt4nNi7KHzLQKINFlsXNAUG8ul6B+75G8jGH1XPyxVVVosdXzFhEx5A==}
     hasBin: true
 
   data-uri-to-buffer@4.0.1:
@@ -4767,7 +4767,7 @@ snapshots:
 
   csv-writer-portable@1.7.6: {}
 
-  cuuid-sha-256@1.1.3:
+  cuuid-sha-256@1.1.4:
     dependencies:
       tsx: 4.19.2
       uuid: 11.0.5

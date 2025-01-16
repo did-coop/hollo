@@ -1,5 +1,5 @@
 // Define an interface for ActorProfile
-type ActorIdType = `${string}-${string}-${string}-${string}-${string}`
+type ActorIdType = `${string}-${string}-${string}-${string}-${string}`;
 
 interface ActorProfile {
   id: ActorIdType;
@@ -128,7 +128,7 @@ interface Block {
 
 interface Like {
   postId: ActorIdType;
-  accountId:  ActorIdType;
+  accountId: ActorIdType;
   created: Date;
 }
 

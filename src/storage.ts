@@ -86,9 +86,7 @@ switch (DRIVE_DISK) {
     );
 
     driver = new FSDriver({
-      location: isAbsolute(assetPath)
-        ? assetPath
-        : join(__dirname, assetPath), // Use __dirname derived from import.meta.url
+      location: isAbsolute(assetPath) ? assetPath : join(__dirname, assetPath), // Use __dirname derived from import.meta.url
       visibility: "public",
     });
     break;

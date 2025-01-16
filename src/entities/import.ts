@@ -1,13 +1,13 @@
+import { Readable } from "node:stream";
 import {
   importActorProfile,
   validateExportStream,
 } from "@interop/wallet-export-ts";
+import CUUIDSHA256 from "cuuid-sha-256";
 import { and, eq } from "drizzle-orm";
+import { canonicalize } from "json-canonicalize";
 import db from "../db";
 import * as schema from "../schema";
-import CUUIDSHA256 from "cuuid-sha-256";
-import { canonicalize } from "json-canonicalize";
-import { Readable } from "stream";
 
 export class AccountImporter {
   actorId: ActorIdType;
@@ -156,7 +156,7 @@ export class AccountImporter {
       return;
     }
 
-    let instanceHost = new URL(profileData.url).hostname;
+    const instanceHost = new URL(profileData.url).hostname;
 
     await db.transaction(async (tx) => {
       const existingInstance = await tx.query.instances.findFirst({
@@ -224,7 +224,7 @@ export class AccountImporter {
   }
 
   async importOutbox(post: Post) {
-    console.log("🚀 ~ AccountImporter ~ importOutbox ~ post:", post)
+    console.log("🚀 ~ AccountImporter ~ importOutbox ~ post:", post);
     try {
       // Validate the post object
       if (!post.url || !post.type || !post.created_at || !post.content) {
