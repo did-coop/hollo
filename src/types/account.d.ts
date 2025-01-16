@@ -32,46 +32,33 @@ interface ActorProfile {
 
 // Define an interface for a Post
 interface Post {
-  id: string | SQL<unknown> | ActorIdType;
+  id: string;
   iri: string;
-  created_at: string;
-  in_reply_to_id: null | string;
-  type: SQL<unknown> | "Article" | "Note" | "Question" | undefined;
+  type: string;
+  accountId: string;
+  applicationId: string | null; // Allow null
+  replyTargetId?: string | null;
+  sharingId?: string | null;
+  quoteTargetId?: `${string}-${string}-${string}-${string}-${string}` | null;
+  visibility: string;
+  summary?: string | null;
+  contentHtml?: string | null;
+  content?: string | null;
+  pollId?: string | null;
+  language?: string | null;
+  tags: Record<string, string>;
+  emojis: Record<string, string>;
   sensitive: boolean;
-  spoiler_text: string;
-  visibility:
-    | SQL<unknown>
-    | "public"
-    | "unlisted"
-    | "private"
-    | "direct"
-    | undefined;
-  language: string;
-  uri: string;
-  url: null | string;
-  replies_count: number;
-  reblogs_count: number;
-  favourites_count: number;
-  favourited: boolean;
-  reblogged: boolean;
-  muted: boolean;
-  bookmarked: boolean;
-  pinned: boolean;
-  content: string;
-  reblog: null | Post;
-  quote_id: null | string;
-  quote: null | Post;
-  application: null | string;
-  account: ActorProfile;
-  media_attachments: Array<{ url: string }>;
-  mentions: Array<{ username: string; url: string }>;
-  tags: Array<{ name: string }>;
-  card: null | { url: string; title: string; description: string };
-  emojis: Array<{ shortcode: string; url: string }>;
-  emoji_reactions: Array<{ emoji: string; count: number }>;
-  poll: null | { options: Array<{ title: string; votes_count: number }> };
-  filtered: null | Array<{ filter: string }>;
-}
+  url?: string | null;
+  previewCard?: any | null;
+  repliesCount: number;
+  sharesCount: number;
+  likesCount: number;
+  idempotenceKey?: string;
+  published?: Date | null;
+  updated: Date;
+  media?: Array<{ id: string; url: string; contentType: string }> | null;
+};
 
 // Define an interface for FollowersData
 interface Follower {
