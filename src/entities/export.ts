@@ -6,6 +6,8 @@ import * as schema from "../schema";
 import { serializeAccount } from "./account";
 import { serializeList } from "./list";
 import { getPostRelations } from "./status";
+import { Activity, lookupObject } from "@fedify/fedify";
+
 
 const homeUrl = process.env["HOME_URL"] || "http://localhost:3000";
 
@@ -69,7 +71,57 @@ export const serializePost = (post: Post, actor: {id: ActorIdType}) => {
 
   return activity;
 }
-// biome-ignore lint/complexity/useLiteralKeys: <explanation>
+
+async function fetchOutbox(actor: any) {
+  const outbox = await actor.getOutbox();
+  if (!outbox) return null;
+
+  const activities: Activity[] = [];
+  for await (const activity of outbox.getItems()) {
+    if (activity instanceof Activity) {
+      activities.push(activity);
+    }
+  }
+
+  return activities;
+}
+
+async function generateOutbox(actor: any, baseUrl: string | URL) {
+  const activities = await fetchOutbox(actor);
+  if (!activities) return null;
+
+  const outbox = {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/v1",
+      {
+        // Additional context definitions
+      },
+    ],
+    id: new URL("/outbox.json", baseUrl).toString(),
+    type: "OrderedCollection",
+    totalItems: activities.length,
+    orderedItems: await Promise.all(
+      activities.map(async (activity) => {
+        // Fetch the full object associated with the activity
+        const object = await activity.getObject();
+
+        return {
+          id: activity.id?.toString(),
+          type: activity.toId?.toString(), // Use `activity.type` instead of `activity.typeId`
+          actor: activity.actorId?.toString(),
+          published: activity.published?.toString(),
+          to: object?.toIds?.map((to: URL) => to.toString()), // Use `object.to`
+          cc: object?.ccIds?.map((cc: URL) => cc.toString()), // Use `object.cc`
+          object: object?.id?.toString(), // Use `object.id`
+        };
+      })
+    ),
+  };
+
+  return outbox;
+}
+
 // Account Exporter class to handle data loading and serialization
 export class AccountExporter {
   actorId: ActorIdType;
@@ -173,21 +225,35 @@ export class AccountExporter {
 
       const postsData = await this.loadPosts();
       console.log("🚀 ~ AccountExporter ~ exportData ~ postsData:", postsData)
-      const serializedPosts = postsData.map((post) =>
-    serializePost(post as any, {
-      id: this.actorId,
-    }),
-    );
 
-    const outbox = {
-      "@context": [
-        "https://www.w3.org/ns/activitystreams",
-      ],
-      id: 'outbox.json',
-      type: "OrderedCollection",
-      totalItems: serializedPosts.length,
-      orderedItems: serializedPosts,
-    };
+    const accOwner = await db.query.accountOwners.findFirst({
+      where: eq(schema.accountOwners.id, this.actorId)
+        });
+
+    const publicKeyPem = accOwner?.ed25519PublicKeyJwk
+        
+
+    // Create an Actor instance from the account data
+//     const actor = {
+//   "@context": [
+//     "https://www.w3.org/ns/activitystreams",
+//     "https://w3id.org/security/v1",
+//   ],
+//   id: new URL(`${homeUrl}/accounts/${account.id}`).toString(),
+//   type: "Person",
+//   preferredUsername: account.handle,
+//   name: account.name,
+//   inbox: new URL(`${homeUrl}/accounts/${account.id}/inbox`).toString(),
+//   outbox: new URL(`${homeUrl}/accounts/${account.id}/outbox`).toString(),
+//   publicKey: {
+//     id: new URL(`${homeUrl}/accounts/${account.id}#main-key`).toString(),
+//     owner: new URL(`${homeUrl}/accounts/${account.id}`).toString(),
+//     publicKeyPem, // Assuming you have a public key
+//   },
+// };
+const actor = await lookupObject(account.iri);
+
+const outbox = await generateOutbox(actor, new URL(homeUrl));
 
     console.log("🚀 ~ AccountExporter ~ exportData ~ outbox:", outbox)
 
