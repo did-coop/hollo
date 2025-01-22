@@ -77,10 +77,9 @@ async function fetchOutbox(actor: any) {
   console.log("🚀 ~ fetchOutbox ~ outbox:", outbox)
   if (!outbox) return null;
 
-  const items = await outbox.getItems();
-  console.log("🚀 ~ fetchOutbox ~ items:", items)
   const activities: Activity[] = [];
-  for (const activity of items) {
+  for await (const activity of outbox.getItems()) {
+    console.log("🚀 ~ forawait ~ activity:", activity)
     if (activity instanceof Activity) {
       activities.push(activity);
     }
@@ -91,7 +90,6 @@ async function fetchOutbox(actor: any) {
 
 async function generateOutbox(actor: any, baseUrl: string | URL) {
   const activities = await fetchOutbox(actor);
-  console.log("🚀 ~ generateOutbox ~ activities:", activities)
   if (!activities) return null;
 
   const outbox = {
