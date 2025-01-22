@@ -97,23 +97,25 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     "@context": [
       "https://www.w3.org/ns/activitystreams",
       "https://w3id.org/security/v1",
+      {
+        // Additional context definitions
+      },
     ],
     id: new URL("/outbox.json", baseUrl).toString(),
     type: "OrderedCollection",
     totalItems: activities.length,
     orderedItems: await Promise.all(
       activities.map(async (activity) => {
-        // Fetch the full object associated with the activity
         const object = await activity.getObject();
 
         return {
           id: activity.id?.toString(),
-          type: "OrderedCollection", // Use `activity.typeId`
+          type: activity.typeId?.toString(),
           actor: activity.actorId?.toString(),
           published: activity.published?.toString(),
-          to: object?.toIds?.map((to: URL) => to.toString()), // Use `object.to`
-          cc: object?.ccIds?.map((cc: URL) => cc.toString()), // Use `object.cc`
-          object: object?.id?.toString(), // Use `object.id`
+          to: activity.to?.map((to: URL) => to.toString()) || [],
+          cc: activity.cc?.map((cc: URL) => cc.toString()) || [],
+          object: object?.id?.toString(),
         };
       })
     ),
