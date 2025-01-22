@@ -77,8 +77,10 @@ async function fetchOutbox(actor: any) {
   console.log("🚀 ~ fetchOutbox ~ outbox:", outbox)
   if (!outbox) return null;
 
+  const items = await outbox.getItems();
+  console.log("🚀 ~ fetchOutbox ~ items:", items)
   const activities: Activity[] = [];
-  for await (const activity of outbox.getItems()) {
+  for (const activity of items) {
     if (activity instanceof Activity) {
       activities.push(activity);
     }
