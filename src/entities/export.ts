@@ -8,7 +8,6 @@ import { serializeList } from "./list";
 import { getPostRelations } from "./status";
 import { Activity, lookupObject } from "@fedify/fedify";
 import { iterateCollection } from "../federation/collection";
-import { Temporal } from "@js-temporal/polyfill";
 
 
 const homeUrl = process.env["HOME_URL"] || "http://localhost:3000";
@@ -107,36 +106,31 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     totalItems: activities.length,
     orderedItems: await Promise.all(
       activities.map(async (activity) => {
-        const object = await activity.getObject();
+        const object = await activity.getObject() as any;
         console.log("🚀 ~ activities.map ~ object:", {...object})
-        const fullObject: { [key: string]: any } = {};
-        for (const [key, value] of Object.entries(object || {})) {
-          if (value instanceof URL) {
-            fullObject[key] = value.toString(); // Convert URL objects to strings
-          } else if (value instanceof Temporal.Instant) {
-            fullObject[key] = value.toString(); // Convert Temporal.Instant to strings
-          } else if (Array.isArray(value)) {
-            fullObject[key] = value.map((item) => {
-              if (item instanceof URL) return item.toString();
-              if (item instanceof Temporal.Instant) return item.toString();
-              return item; // Preserve other array items as-is
-            });
-          } else if (typeof value === "object" && value !== null) {
-            // Recursively handle nested objects
-            fullObject[key] = {};
-            for (const [nestedKey, nestedValue] of Object.entries(value)) {
-              if (nestedValue instanceof URL) {
-                fullObject[key][nestedKey] = nestedValue.toString();
-              } else if (nestedValue instanceof Temporal.Instant) {
-                fullObject[key][nestedKey] = nestedValue.toString();
-              } else {
-                fullObject[key][nestedKey] = nestedValue;
-              }
-            }
-          } else {
-            fullObject[key] = value; // Preserve other values as-is
-          }
-        }
+        const fullObject = {
+          id: object?.id?.toString(),
+          type: object?.typeId?.toString(),
+          content: object?.content,
+          published: object?.published?.toString(),
+          url: object?.url?.toString(),
+          to: object?.to
+            ? Array.isArray(object.to)
+              ? object.to.map((to: URL) => to.toString())
+              : [object.to.toString()]
+            : [],
+          cc: object?.cc
+            ? Array.isArray(object.cc)
+              ? object.cc.map((cc: URL) => cc.toString())
+              : [object.cc.toString()]
+            : [],
+          tags: object?.tags?.map((tag: any) => ({
+            type: tag.typeId?.toString(),
+            href: tag.href?.toString(),
+            name: tag.name,
+          })),
+          // Add other fields from the `Note` object as needed
+        };
         console.log("🚀 ~ activities.map ~ fullObject:", fullObject)
         
         return {
@@ -146,7 +140,7 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
           published: activity.published?.toString(),
           to: activity.toIds,
           cc: activity.ccIds,
-          object: {...object},
+          object: fullObject,
         };
       })
     ),
