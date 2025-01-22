@@ -74,6 +74,7 @@ export const serializePost = (post: Post, actor: {id: ActorIdType}) => {
 
 async function fetchOutbox(actor: any) {
   const outbox = await actor.getOutbox();
+  console.log("🚀 ~ fetchOutbox ~ outbox:", outbox)
   if (!outbox) return null;
 
   const activities: Activity[] = [];
@@ -225,32 +226,7 @@ export class AccountExporter {
 
       const postsData = await this.loadPosts();
       console.log("🚀 ~ AccountExporter ~ exportData ~ postsData:", postsData)
-
-    const accOwner = await db.query.accountOwners.findFirst({
-      where: eq(schema.accountOwners.id, this.actorId)
-        });
-
-    const publicKeyPem = accOwner?.ed25519PublicKeyJwk
         
-
-    // Create an Actor instance from the account data
-//     const actor = {
-//   "@context": [
-//     "https://www.w3.org/ns/activitystreams",
-//     "https://w3id.org/security/v1",
-//   ],
-//   id: new URL(`${homeUrl}/accounts/${account.id}`).toString(),
-//   type: "Person",
-//   preferredUsername: account.handle,
-//   name: account.name,
-//   inbox: new URL(`${homeUrl}/accounts/${account.id}/inbox`).toString(),
-//   outbox: new URL(`${homeUrl}/accounts/${account.id}/outbox`).toString(),
-//   publicKey: {
-//     id: new URL(`${homeUrl}/accounts/${account.id}#main-key`).toString(),
-//     owner: new URL(`${homeUrl}/accounts/${account.id}`).toString(),
-//     publicKeyPem, // Assuming you have a public key
-//   },
-// };
 const actor = await lookupObject(account.iri);
 
 const outbox = await generateOutbox(actor, new URL(homeUrl));
