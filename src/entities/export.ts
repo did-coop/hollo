@@ -183,7 +183,7 @@ export class AccountExporter {
       "@context": [
         "https://www.w3.org/ns/activitystreams",
       ],
-      id: 'outbox.json',
+      id: new URL(`${c.req.url}/outbox.json`),
       type: "OrderedCollection",
       totalItems: serializedPosts.length,
       orderedItems: serializedPosts,
