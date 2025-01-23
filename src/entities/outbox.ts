@@ -127,13 +127,13 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
         // console.log("🚀 ~ activities.map ~ replies:", replies)
 
         // Handle `shares` field
-        // const shares = await getSharesAsArray(object);
+        const shares = await getSharesAsArray(object);
 
         // Handle `likes` field
-        // const likes = await getLikesAsArray(object);
+        const likes = await getLikesAsArray(object);
 
         // Handle `attachments` field
-        // const attachments = await getAttachmentsAsArray(object);
+        const attachments = await getAttachmentsAsArray(object);
 
         // Create the full object
         const fullObject = {
@@ -146,9 +146,9 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
           cc,
           tags,
           // replies,
-          // shares,
-          // likes,
-          // attachments,
+          shares,
+          likes,
+          attachments,
         };
 
         return {
