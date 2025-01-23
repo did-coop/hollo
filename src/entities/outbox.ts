@@ -123,8 +123,8 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
         const tags = await getTagsAsArray(object);
 
         // Handle `replies` field
-        // const replies = await getRepliesAsArray(object);
-        // console.log("🚀 ~ activities.map ~ replies:", replies)
+        const replies = await getRepliesAsArray(object);
+        console.log("🚀 ~ activities.map ~ replies:", replies)
 
         // Handle `shares` field
         const shares = await getSharesAsArray(object);
