@@ -19,7 +19,7 @@ async function getTagsAsArray(object: any): Promise<Array<{ type: string; href: 
 async function getToAsArray(object: any): Promise<string[]> {
   const to = [];
   for await (const item of object.getTos()) {
-    to.push(item.id.toString());
+    to.push(item.id?.toString());
   }
   return to;
 }
@@ -97,16 +97,6 @@ async function fetchOutbox(actor: any) {
   return activities;
 }
 
-function cleanObject(obj: Record<string, any>): Record<string, any> {
-  const cleaned: Record<string, any> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value !== null && value !== undefined) {
-      cleaned[key] = value;
-    }
-  }
-  return cleaned;
-}
-
 async function generateOutbox(actor: any, baseUrl: string | URL) {
   const activities = await fetchOutbox(actor);
   if (!activities) return null;
@@ -133,34 +123,35 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
         const tags = await getTagsAsArray(object);
 
         // Handle `replies` field
-        const replies = await getRepliesAsArray(object);
+        // const replies = await getRepliesAsArray(object);
+        // console.log("🚀 ~ activities.map ~ replies:", replies)
 
         // Handle `shares` field
-        const shares = await getSharesAsArray(object);
+        // const shares = await getSharesAsArray(object);
 
         // Handle `likes` field
-        const likes = await getLikesAsArray(object);
+        // const likes = await getLikesAsArray(object);
 
         // Handle `attachments` field
-        const attachments = await getAttachmentsAsArray(object);
+        // const attachments = await getAttachmentsAsArray(object);
 
         // Create the full object
-        const fullObject = cleanObject({
+        const fullObject = {
           id: object?.id?.toString(),
           type: object?.typeId?.toString(),
           content: object?.content,
           published: object?.published?.toString(),
           url: object?.url?.toString(),
-          to: to.length > 0 ? to : undefined,
-          cc: cc.length > 0 ? cc : undefined,
-          tags: tags.length > 0 ? tags : undefined,
-          replies: replies.length > 0 ? replies : undefined,
-          shares: shares.length > 0 ? shares : undefined,
-          likes: likes.length > 0 ? likes : undefined,
-          attachments: attachments.length > 0 ? attachments : undefined,
-        });
+          to,
+          cc,
+          tags,
+          // replies,
+          // shares,
+          // likes,
+          // attachments,
+        };
 
-        return cleanObject({
+        return {
           id: activity.id?.toString(),
           type: "OrderedCollection",
           actor: activity.actorId?.toString(),
@@ -168,7 +159,7 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
           to: activity.toIds,
           cc: activity.ccIds,
           object: fullObject,
-        });
+        };
       })
     ),
   };
