@@ -92,13 +92,7 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
         }
 
         const replies = await object.getReplies();
-        console.log("🚀 ~ activities.map ~ replies:", replies)
-        const likes = await object.getLikes();
-        console.log("🚀 ~ activities.map ~ likes:", likes)
-        const shares = await object.getShares();
-        console.log("🚀 ~ activities.map ~ shares:", shares
-        
-        )
+
         const to = object.toIds;
         const cc = object.ccIds;
 
@@ -113,9 +107,7 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
           to: to.length > 0 ? to : undefined,
           cc: cc.length > 0 ? cc : undefined,
           tags: tags.length > 0 ? tags : undefined,
-          replies: replies,
-          likes: likes,
-          shares: shares,
+          replies: replies
         });
 
         return cleanObject({
