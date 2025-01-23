@@ -89,7 +89,6 @@ async function fetchOutbox(actor: any) {
 
 async function generateOutbox(actor: any, baseUrl: string | URL) {
   const activities = await fetchOutbox(actor);
-  console.log("🚀 ~ generateOutbox ~ activities:", activities)
   if (!activities) return null;
 
   const outbox = {
@@ -103,22 +102,17 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     id: new URL("/outbox.json", baseUrl).toString(),
     type: "OrderedCollection",
     totalItems: activities.length,
-    orderedItems: await Promise.all(
-      activities.map(async (activity) => {
-        // Fetch the full object associated with the activity
-        const object = await activity.getObject();
-
+    orderedItems:
+      activities.map( (activity) => {
         return {
           id: activity.id?.toString(),
-          type: "OrderedCollection", // Use `activity.typeId`
+          type: activity.toId?.toString(), // Use `activity.type` instead of `activity.typeId`
           actor: activity.actorId?.toString(),
           published: activity.published?.toString(),
-          to: object?.toIds?.map((to: URL) => to.toString()), // Use `object.to`
-          cc: object?.ccIds?.map((cc: URL) => cc.toString()), // Use `object.cc`
-          object: object?.id?.toString(), // Use `object.id`
+          to: activity?.toIds?.map((to: URL) => to.toString()), // Use `object.to`
+          cc: activity?.ccIds?.map((cc: URL) => cc.toString()), // Use `object.cc`
         };
       })
-    ),
   };
 
   return outbox;
