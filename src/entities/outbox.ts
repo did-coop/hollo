@@ -91,7 +91,7 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
           return null;
         }
 
-        const replies = await object.getReplies();
+        const replies = await getRepliesAsArray(object);
 
         const to = object.toIds;
         const cc = object.ccIds;
@@ -107,7 +107,7 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
           to: to.length > 0 ? to : undefined,
           cc: cc.length > 0 ? cc : undefined,
           tags: tags.length > 0 ? tags : undefined,
-          replies: replies
+          replies: replies.length > 0 ? replies : undefined
         });
 
         return cleanObject({
