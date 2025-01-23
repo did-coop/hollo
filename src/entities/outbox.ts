@@ -118,8 +118,16 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
             totalITems: replies?.totalItems,
             items: replies?.getItems
           },
-          likes: likes,
-          shares: shares,
+          likes: {
+            id: likes?.id,
+            totalItems: likes?.totalItems,
+            items: likes?.getItems
+          },
+          shares: {
+            id: shares?.id,
+            totalItems: shares?.totalItems,
+            items: shares?.getItems
+          },
         });
 
         return cleanObject({
