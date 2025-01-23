@@ -15,6 +15,91 @@ async function getTagsAsArray(object: any): Promise<Array<{ type: string; href: 
   return tags;
 }
 
+// Helper to get to as an array
+async function getToAsArray(object: any): Promise<string[]> {
+  console.log("🚀 ~ getToAsArray ~ object:", object);
+
+  if (!object?.getTos) {
+    console.log("🚀 ~ getToAsArray ~ object.getTos is missing or null");
+    return [];
+  }
+
+  const to = [];
+  for await (const item of object.getTos()) {
+    console.log("🚀 ~ getToAsArray ~ item:", item);
+
+    if (!item?.id) {
+      console.log("🚀 ~ getToAsArray ~ item.id is missing or null");
+      continue;
+    }
+
+    const id = safeToString(item.id);
+    if (id) {
+      to.push(id);
+    }
+  }
+
+  console.log("🚀 ~ getToAsArray ~ to:", to);
+  return to;
+}
+
+// Helper to get cc as an array
+async function getCcAsArray(object: any): Promise<string[]> {
+  const cc = [];
+  for await (const item of object.getCcs()) {
+    cc.push(item.id?.toString());
+  }
+  return cc;
+}
+
+// Helper to get replies as an array
+async function getRepliesAsArray(object: any): Promise<Array<{ id: string; type: string }>> {
+  const replies = [];
+  for await (const reply of object.getReplies()) {
+    replies.push({
+      id: reply.id?.toString(),
+      type: reply.typeId?.toString(),
+    });
+  }
+  return replies;
+}
+
+// Helper to get shares as an array
+async function getSharesAsArray(object: any): Promise<Array<{ id: string; type: string }>> {
+  const shares = [];
+  for await (const share of object.getShares()) {
+    shares.push({
+      id: share.id?.toString(),
+      type: share.typeId?.toString(),
+    });
+  }
+  return shares;
+}
+
+// Helper to get likes as an array
+async function getLikesAsArray(object: any): Promise<Array<{ id: string; type: string }>> {
+  const likes = [];
+  for await (const like of object.getLikes()) {
+    likes.push({
+      id: like.id?.toString(),
+      type: like.typeId?.toString(),
+    });
+  }
+  return likes;
+}
+
+// Helper to get attachments as an array
+async function getAttachmentsAsArray(object: any): Promise<Array<{ id: string; type: string }>> {
+  const attachments = [];
+  for await (const attachment of object.getAttachments()) {
+    attachments.push({
+      id: attachment.id?.toString(),
+      type: attachment.typeId?.toString(),
+    });
+  }
+  return attachments;
+}
+
 async function fetchOutbox(actor: any) {
   const outbox = await actor.getOutbox();
   console.log("🚀 ~ fetchOutbox ~ outbox:", outbox);
@@ -69,21 +154,48 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
           return null; // Skip if object is null
         }
 
-        const to =  object.toIds;
-        const cc = object.ccIds
+        // Handle `to` field
+        const to = await getToAsArray(object);
+        console.log("🚀 ~ Processed to:", to);
 
+        // Handle `cc` field
+        const cc = await getCcAsArray(object);
+        console.log("🚀 ~ Processed cc:", cc);
+
+        // Handle `tags` field
         const tags = await getTagsAsArray(object);
         console.log("🚀 ~ Processed tags:", tags);
 
+        // Handle `replies` field
+        // const replies = await getRepliesAsArray(object);
+        // console.log("🚀 ~ Processed replies:", replies);
+
+        // // Handle `shares` field
+        // const shares = await getSharesAsArray(object);
+        // console.log("🚀 ~ Processed shares:", shares);
+
+        // // Handle `likes` field
+        // const likes = await getLikesAsArray(object);
+        // console.log("🚀 ~ Processed likes:", likes);
+
+        // // Handle `attachments` field
+        // const attachments = await getAttachmentsAsArray(object);
+        // console.log("🚀 ~ Processed attachments:", attachments);
+
+        // Create the full object
         const fullObject = cleanObject({
           id: safeToString(object.id),
-          type: safeToString(object.id),
+          type: safeToString(object.typeId),
           content: object.content,
           published: safeToString(object.published),
           url: safeToString(object.url),
           to: to.length > 0 ? to : undefined,
           cc: cc.length > 0 ? cc : undefined,
           tags: tags.length > 0 ? tags : undefined,
+          // replies: replies.length > 0 ? replies : undefined,
+          // shares: shares.length > 0 ? shares : undefined,
+          // likes: likes.length > 0 ? likes : undefined,
+          // attachments: attachments.length > 0 ? attachments : undefined,
         });
 
         return cleanObject({
