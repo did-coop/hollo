@@ -7,7 +7,6 @@ import { serializeAccount } from "./account";
 import { serializeList } from "./list";
 import { getPostRelations } from "./status";
 import { Activity, lookupObject } from "@fedify/fedify";
-import { iterateCollection } from "../federation/collection";
 
 
 const homeUrl = process.env["HOME_URL"] || "http://localhost:3000";
@@ -75,17 +74,17 @@ export const serializePost = (post: Post, actor: {id: ActorIdType}) => {
 
 async function fetchOutbox(actor: any) {
   const outbox = await actor.getOutbox();
-  console.log("🚀 ~ fetchOutbox ~ outbox:", outbox);
+  console.log("🚀 ~ fetchOutbox ~ outbox:", outbox)
   if (!outbox) return null;
 
   const activities: Activity[] = [];
-  for await (const activity of iterateCollection(outbox)) {
+  for await (const activity of outbox.getItems()) {
+    console.log("🚀 ~ forawait ~ activity:", activity)
     if (activity instanceof Activity) {
       activities.push(activity);
     }
   }
 
-  console.log("🚀 ~ fetchOutbox ~ activities:", activities);
   return activities;
 }
 
@@ -97,6 +96,9 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     "@context": [
       "https://www.w3.org/ns/activitystreams",
       "https://w3id.org/security/v1",
+      {
+        // Additional context definitions
+      },
     ],
     id: new URL("/outbox.json", baseUrl).toString(),
     type: "OrderedCollection",
