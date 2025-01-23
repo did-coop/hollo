@@ -1,14 +1,6 @@
 import  { Activity } from "@fedify/fedify";
 import { iterateCollection } from "../federation/collection";
 
-// Helper to convert AsyncIterable to an array
-async function asyncIterableToArray<T>(iterable: AsyncIterable<T>): Promise<T[]> {
-  const result: T[] = [];
-  for await (const item of iterable) {
-    result.push(item);
-  }
-  return result;
-}
 
 // Helper to get tags as an array
 async function getTagsAsArray(object: any): Promise<Array<{ type: string; href: string; name: string }>> {
@@ -132,6 +124,7 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
 
         // Handle `replies` field
         const replies = await getRepliesAsArray(object);
+        console.log("🚀 ~ activities.map ~ replies:", replies)
 
         // Handle `shares` field
         const shares = await getSharesAsArray(object);
@@ -175,13 +168,5 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
 }
 
 export {
-  asyncIterableToArray,
-  getTagsAsArray,
-  getToAsArray,
-  getCcAsArray,
-  getRepliesAsArray,
-  getSharesAsArray,
-  getLikesAsArray,
-  getAttachmentsAsArray,
   generateOutbox
 }
