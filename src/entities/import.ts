@@ -223,96 +223,101 @@ export class AccountImporter {
     );
   }
 
-async importOutbox(activity: any) {
-  console.log("🚀 ~ AccountImporter ~ importOutbox ~ activity:", activity);
-  try {
-    // Validate the activity object
-    if (!activity.object || activity.type !== "Create") {
-      console.error("Skipping activity due to invalid type or missing object:", activity);
-      return;
-    }
+  async importOutbox(activity: any) {
+    console.log("🚀 ~ AccountImporter ~ importOutbox ~ activity:", activity);
+    try {
+      // Validate the activity object
+      if (!activity.object || activity.type !== "Create") {
+        console.error(
+          "Skipping activity due to invalid type or missing object:",
+          activity,
+        );
+        return;
+      }
 
-    const post = activity.object; // The `Note` object inside the `Create` activity
+      const post = activity.object; // The `Note` object inside the `Create` activity
 
-    // Validate the post object
-    if (!post.id || !post.type || !post.published || !post.content) {
-      console.error("Skipping post due to missing required fields:", post);
-      return;
-    }
+      // Validate the post object
+      if (!post.id || !post.type || !post.published || !post.content) {
+        console.error("Skipping post due to missing required fields:", post);
+        return;
+      }
 
-    // Generate a new post ID using cuuid
-    const postDataCanonical = canonicalize({
-      uri: post.id, // Use post.id as the unique identifier
-      createdAt: post.published,
-      accountId: this.actorId, // Use the new account ID
-    });
-
-    const cuuid = new CUUIDSHA256({
-      namespace: post.id,
-      name: postDataCanonical,
-    });
-
-    const newPostId = await cuuid.toString();
-
-    // Log the post URL for debugging
-    console.log("🚀 ~ AccountImporter ~ importOutbox ~ post.id:", post.id);
-
-    // Check if the post already exists
-    const isExistingPost = await db.query.posts.findFirst({
-      where: eq(schema.posts.iri, post.id), // Check by post.id (iri)
-    });
-
-    if (isExistingPost) {
-      console.warn(
-        `Post with ID ${post.id} already exists, updating instead of skipping`,
-      );
-    }
-
-    const postData = {
-      id: newPostId,
-      iri: post.id, // Use post.id as the unique identifier
-      type: post.type,
-      accountId: this.actorId,
-      createdAt: new Date(post.published),
-      inReplyToId: post.inReplyTo ? new URL(post.inReplyTo).pathname.split("/").pop() : null, // Extract ID from inReplyTo URL
-      sensitive: post.sensitive || false,
-      spoilerText: post.summary || "", // Use post.summary as spoilerText
-      visibility: "public" as "public" | "unlisted" | "private" | "direct",
-      language: post.contentMap?.en ? "en" : "und",
-      url: post.url || post.id,
-      repliesCount: post.replies?.totalItems || 0,
-      reblogsCount: post.shares?.totalItems || 0,
-      favouritesCount: post.likes?.totalItems || 0,
-      favourited: false, // Default value
-      reblogged: false, // Default value
-      muted: false, // Default value
-      bookmarked: false, // Default value
-      pinned: false, // Default value
-      contentHtml: post.content,
-      quoteId: null, // Default value (no quote support yet)
-    };
-
-    // Insert or update the post
-    await db
-      .insert(schema.posts)
-      .values(postData)
-      .onConflictDoUpdate({
-        target: schema.posts.iri,
-        set: {
-          accountId: this.actorId,
-          contentHtml: post.content,
-        },
+      // Generate a new post ID using cuuid
+      const postDataCanonical = canonicalize({
+        uri: post.id, // Use post.id as the unique identifier
+        createdAt: post.published,
+        accountId: this.actorId, // Use the new account ID
       });
 
-    console.log(
-      "🚀 ~ AccountImporter ~ importOutbox ~ post imported/updated successfully:",
-      newPostId,
-    );
-  } catch (error) {
-    console.error("Error importing post:", { error });
-    throw error; // Re-throw the error to trigger transaction rollback
+      const cuuid = new CUUIDSHA256({
+        namespace: post.id,
+        name: postDataCanonical,
+      });
+
+      const newPostId = await cuuid.toString();
+
+      // Log the post URL for debugging
+      console.log("🚀 ~ AccountImporter ~ importOutbox ~ post.id:", post.id);
+
+      // Check if the post already exists
+      const isExistingPost = await db.query.posts.findFirst({
+        where: eq(schema.posts.iri, post.id), // Check by post.id (iri)
+      });
+
+      if (isExistingPost) {
+        console.warn(
+          `Post with ID ${post.id} already exists, updating instead of skipping`,
+        );
+      }
+
+      const postData = {
+        id: newPostId,
+        iri: post.id, // Use post.id as the unique identifier
+        type: post.type,
+        accountId: this.actorId,
+        createdAt: new Date(post.published),
+        inReplyToId: post.inReplyTo
+          ? new URL(post.inReplyTo).pathname.split("/").pop()
+          : null, // Extract ID from inReplyTo URL
+        sensitive: post.sensitive || false,
+        spoilerText: post.summary || "", // Use post.summary as spoilerText
+        visibility: "public" as "public" | "unlisted" | "private" | "direct",
+        language: post.contentMap?.en ? "en" : "und",
+        url: post.url || post.id,
+        repliesCount: post.replies?.totalItems || 0,
+        reblogsCount: post.shares?.totalItems || 0,
+        favouritesCount: post.likes?.totalItems || 0,
+        favourited: false, // Default value
+        reblogged: false, // Default value
+        muted: false, // Default value
+        bookmarked: false, // Default value
+        pinned: false, // Default value
+        contentHtml: post.content,
+        quoteId: null, // Default value (no quote support yet)
+      };
+
+      // Insert or update the post
+      await db
+        .insert(schema.posts)
+        .values(postData)
+        .onConflictDoUpdate({
+          target: schema.posts.iri,
+          set: {
+            accountId: this.actorId,
+            contentHtml: post.content,
+          },
+        });
+
+      console.log(
+        "🚀 ~ AccountImporter ~ importOutbox ~ post imported/updated successfully:",
+        newPostId,
+      );
+    } catch (error) {
+      console.error("Error importing post:", { error });
+      throw error; // Re-throw the error to trigger transaction rollback
+    }
   }
-}
 
   async importBookmark(bookmark: Bookmark) {
     const existingBookmark = await db.query.bookmarks.findFirst({
