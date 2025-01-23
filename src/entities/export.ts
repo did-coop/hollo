@@ -104,23 +104,38 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     orderedItems: await Promise.all(
       activities.map(async (activity) => {
         const object = await activity.getObject();
-        console.log("🚀 ~ activities.map ~ object:", object, object?.tags)
+
+        // Debug: Log the entire object and its tags
+        console.dir("🚀 ~ activities.map ~ object:", object);
+        console.dir("🚀 ~ activities.map ~ object.tags:", object?.tags);
+
+        // Handle `to` field (single URL or array of URLs)
+        const to = object?.to
+          && Array.isArray(object.to)
+            ? object.to.map((to: URL) => to.toString())
+            : [object.to.toString()];
+
+        // Handle `tags` field
+        const tags = (object?.tags ?? []).map((tag: any) => ({
+          type: tag.typeId?.toString(), // e.g., "Hashtag"
+          href: tag.href?.toString(),   // e.g., "https://social.tchncs.de/tags/foss"
+          name: tag.name                // e.g., "#foss"
+        }));
+
+        // Create the full object
         const fullObject = {
           id: object?.id?.toString(),
           type: object?.typeId?.toString(),
           content: object?.content,
           published: object?.published?.toString(),
           url: object?.url?.toString(),
-          to: object?.to,
-          tags: (object?.tags ?? []).map((tag: any) => ({
-            type: tag.typeId?.toString(), // e.g., "Hashtag"
-            href: tag.href?.toString(),   // e.g., "https://social.tchncs.de/tags/foss"
-            name: tag.name                // e.g., "#foss"
-          }))
-          // Add other fields from the `Note` object as needed
+          to,
+          tags, // Include the processed tags
         };
-        console.log("🚀 ~ activities.map ~ fullObject:", fullObject)
-        
+
+        // Debug: Log the full object
+        console.log("🚀 ~ activities.map ~ fullObject:", fullObject);
+
         return {
           id: activity.id?.toString(),
           type: "OrderedCollection",
