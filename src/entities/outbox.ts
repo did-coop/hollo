@@ -20,23 +20,6 @@ async function getTagsAsArray(
   return tags;
 }
 
-async function getRepliesAsArray(object: any): Promise<Array<{ id: string; type: string, totalItems: number }>> {
-  if (!object?.getReplies) return [];
-  const replies = [];
-  for await (const reply of object.getReplies()) {
-    const id = safeToString(reply.id);
-    const type = safeToString(reply.typeId);
-    if (id && type) {
-      replies.push({
-        id,
-        type,
-        totalItems: reply.totalItems,
-      });
-    }
-  }
-  return replies.filter((reply) => reply.id && reply.type); // Remove incomplete entries
-}
-
 async function fetchOutbox(actor: Actor) {
   const outbox = await actor.getOutbox();
   console.log("🚀 ~ fetchOutbox ~ outbox:", outbox);
@@ -88,15 +71,14 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
 
         if (!object) {
           console.log("🚀 ~ Object is null, skipping activity");
-          return null;
+          return null; // Skip if object is null
         }
-
-        const replies = await getRepliesAsArray(object);
 
         const to = object.toIds;
         const cc = object.ccIds;
 
         const tags = await getTagsAsArray(object);
+        console.log("🚀 ~ Processed tags:", tags);
 
         const fullObject = cleanObject({
           id: safeToString(object.id),
@@ -107,7 +89,6 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
           to: to.length > 0 ? to : undefined,
           cc: cc.length > 0 ? cc : undefined,
           tags: tags.length > 0 ? tags : undefined,
-          replies: replies.length > 0 ? replies : undefined
         });
 
         return cleanObject({
