@@ -97,10 +97,6 @@ async function fetchOutbox(actor: any) {
   return activities;
 }
 
-function safeToString(value: any): string | undefined {
-  return value?.toString();
-}
-
 function cleanObject(obj: Record<string, any>): Record<string, any> {
   const cleaned: Record<string, any> = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -126,7 +122,6 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     orderedItems: await Promise.all(
       activities.map(async (activity) => {
         const object = await activity.getObject();
-        if (!object) return null; // Skip if object is null
 
         // Handle `to` field
         const to = await getToAsArray(object);
@@ -151,11 +146,11 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
 
         // Create the full object
         const fullObject = cleanObject({
-          id: safeToString(object.id),
-          type: safeToString(object.typeId),
-          content: object.content,
-          published: safeToString(object.published),
-          url: safeToString(object.url),
+          id: object?.id?.toString(),
+          type: object?.typeId?.toString(),
+          content: object?.content,
+          published: object?.published?.toString(),
+          url: object?.url?.toString(),
           to: to.length > 0 ? to : undefined,
           cc: cc.length > 0 ? cc : undefined,
           tags: tags.length > 0 ? tags : undefined,
@@ -166,16 +161,16 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
         });
 
         return cleanObject({
-          id: safeToString(activity.id),
+          id: activity.id?.toString(),
           type: "OrderedCollection",
-          actor: safeToString(activity.actorId),
-          published: safeToString(activity.published),
+          actor: activity.actorId?.toString(),
+          published: activity.published?.toString(),
           to: activity.toIds,
           cc: activity.ccIds,
           object: fullObject,
         });
       })
-    ).then((items) => items.filter(Boolean)), // Remove null entries
+    ),
   };
 
   return outbox;
