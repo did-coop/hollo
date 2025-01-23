@@ -113,11 +113,7 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
           to: to.length > 0 ? to : undefined,
           cc: cc.length > 0 ? cc : undefined,
           tags: tags.length > 0 ? tags : undefined,
-          replies: {
-            id: replies?.id,
-            totalITems: replies?.totalItems,
-            items: replies?.getItems
-          },
+          replies: replies,
           likes: likes,
           shares: shares,
         });
