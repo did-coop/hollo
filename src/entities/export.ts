@@ -8,10 +8,149 @@ import { serializeList } from "./list";
 import { getPostRelations } from "./status";
 import { Activity, lookupObject } from "@fedify/fedify";
 import { iterateCollection } from "../federation/collection";
-import { generateOutbox } from "./outbox";
 
 
 const homeUrl = process.env["HOME_URL"] || "http://localhost:3000";
+
+export const serializePost = (post: Post, actor: {id: ActorIdType}) => {
+  const note = {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    id: new URL(post.iri),
+    type: "Note",
+    summary: post.summary || null,
+    inReplyTo: post.replyTargetId ? new URL(`${homeUrl}/posts/${post.replyTargetId}`) : null,
+    published: post.published?.toISOString() || new Date().toISOString(),
+    url: post.url ? new URL(post.url) : new URL(`${homeUrl}/posts/${post.id}`),
+    attributedTo: new URL(`${homeUrl}/accounts/${actor.id}`),
+    to: [new URL("https://www.w3.org/ns/activitystreams#Public")],
+    cc: [new URL(`${homeUrl}/accounts/${actor.id}/followers`)],
+    sensitive: post.sensitive,
+    atomUri: new URL(post.iri),
+    inReplyToAtomUri: post.replyTargetId ? new URL(`${homeUrl}/posts/${post.replyTargetId}`) : null,
+    conversation: `tag:${new URL(homeUrl).hostname},${post.published?.toISOString()}:objectId=${post.id}:objectType=Conversation`,
+    content: post.contentHtml || post.content || "",
+    contentMap: {
+      en: post.contentHtml || post.content || "",
+    },
+    attachment: post.media?.map((media: any) => ({
+      type: "Document",
+      mediaType: media.contentType,
+      url: new URL(media.url),
+    })) || [],
+    tag: post.tags ? Object.entries(post.tags).map(([name, href]) => ({
+      type: "Hashtag",
+      href: new URL(href),
+      name: `#${name}`,
+    })) : [],
+    replies: {
+      id: new URL(`${post.iri}/replies`),
+      type: "Collection",
+      totalItems: post.repliesCount,
+    },
+    likes: {
+      id: new URL(`${post.iri}/likes`),
+      type: "Collection",
+      totalItems: post.likesCount,
+    },
+    shares: {
+      id: new URL(`${post.iri}/shares`),
+      type: "Collection",
+      totalItems: post.sharesCount,
+    },
+  };
+
+  const activity = {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    id: new URL(`${post.iri}/activity`),
+    type: "Create",
+    actor: new URL(`${homeUrl}/accounts/${actor.id}`),
+    published: post.published?.toISOString() || new Date().toISOString(),
+    to: note.to,
+    cc: note.cc,
+    object: note,
+  };
+
+  return activity;
+}
+
+async function fetchOutbox(actor: any) {
+  const outbox = await actor.getOutbox();
+  console.log("🚀 ~ fetchOutbox ~ outbox:", outbox);
+  if (!outbox) return null;
+
+  const activities: Activity[] = [];
+  for await (const activity of iterateCollection(outbox)) {
+    if (activity instanceof Activity) {
+      activities.push(activity);
+    }
+  }
+
+  console.log("🚀 ~ fetchOutbox ~ activities:", activities);
+  return activities;
+}
+
+async function generateOutbox(actor: any, baseUrl: string | URL) {
+  const activities = await fetchOutbox(actor);
+  if (!activities) return null;
+
+  const outbox = {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://w3id.org/security/v1",
+    ],
+    id: new URL("/outbox.json", baseUrl).toString(),
+    type: "OrderedCollection",
+    totalItems: activities.length,
+    orderedItems: await Promise.all(
+      activities.map(async (activity) => {
+        const object = await activity.getObject();
+
+        // Debug: Log the entire object and its tags
+        console.dir("🚀 ~ activities.map ~ object:", object);
+        console.dir("🚀 ~ activities.map ~ object.tags:", object?.tags);
+
+        // Handle `to` field (single URL or array of URLs)
+        const to = object?.to
+          && Array.isArray(object.to)
+            ? object.to.map((to: URL) => to.toString())
+            : [object.to.toString()];
+
+        // Handle `tags` field
+        const tags = (object?.tags ?? []).map((tag: any) => ({
+          type: tag.typeId?.toString(), // e.g., "Hashtag"
+          href: tag.href?.toString(),   // e.g., "https://social.tchncs.de/tags/foss"
+          name: tag.name                // e.g., "#foss"
+        }));
+
+        // Create the full object
+        const fullObject = {
+          id: object?.id?.toString(),
+          type: object?.typeId?.toString(),
+          content: object?.content,
+          published: object?.published?.toString(),
+          url: object?.url?.toString(),
+          to,
+          tags, // Include the processed tags
+        };
+
+        // Debug: Log the full object
+        console.log("🚀 ~ activities.map ~ fullObject:", fullObject);
+
+        return {
+          id: activity.id?.toString(),
+          type: "OrderedCollection",
+          actor: activity.actorId?.toString(),
+          published: activity.published?.toString(),
+          to: activity.toIds,
+          cc: activity.ccIds,
+          object: fullObject,
+        };
+      })
+    ),
+  };
+
+  return outbox;
+}
 
 // Account Exporter class to handle data loading and serialization
 export class AccountExporter {
