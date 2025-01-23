@@ -145,7 +145,7 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
           to,
           cc,
           tags,
-          replies,
+          // replies,
           shares,
           likes,
           attachments,
