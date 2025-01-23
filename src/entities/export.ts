@@ -8,7 +8,6 @@ import { serializeList } from "./list";
 import { getPostRelations } from "./status";
 import { Activity, lookupObject } from "@fedify/fedify";
 import { iterateCollection } from "../federation/collection";
-import { Temporal } from "@js-temporal/polyfill";
 
 
 const homeUrl = process.env["HOME_URL"] || "http://localhost:3000";
@@ -74,43 +73,6 @@ export const serializePost = (post: Post, actor: {id: ActorIdType}) => {
   return activity;
 }
 
-function serializeActivity(activity: any): any {
-  const serialized: any = {};
-
-  // Iterate over all properties of the activity
-  for (const [key, value] of Object.entries(activity)) {
-    if (value instanceof URL) {
-      serialized[key] = value.toString(); // Convert URL objects to strings
-    } else if (value instanceof Temporal.Instant) {
-      serialized[key] = value.toString(); // Convert Temporal.Instant to strings
-    } else if (Array.isArray(value)) {
-      serialized[key] = value.map((item) => serializeValue(item)); // Handle arrays
-    } else if (typeof value === "object" && value !== null) {
-      serialized[key] = serializeActivity(value); // Recursively handle nested objects
-    } else {
-      serialized[key] = value; // Preserve other values as-is
-    }
-  }
-
-  return serialized;
-}
-
-// Helper function to serialize individual values
-function serializeValue(value: any): any {
-  if (value instanceof URL) {
-    return value.toString(); // Convert URL objects to strings
-  } else if (value instanceof Temporal.Instant) {
-    return value.toString(); // Convert Temporal.Instant to strings
-  } else if (Array.isArray(value)) {
-    return value.map((item) => serializeValue(item)); // Handle arrays
-  } else if (typeof value === "object" && value !== null) {
-    return serializeActivity(value); // Recursively handle nested objects
-  } else {
-    return value; // Preserve other values as-is
-  }
-}
-
-
 async function fetchOutbox(actor: any) {
   const outbox = await actor.getOutbox();
   console.log("🚀 ~ fetchOutbox ~ outbox:", outbox);
@@ -135,27 +97,49 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     "@context": [
       "https://www.w3.org/ns/activitystreams",
       "https://w3id.org/security/v1",
-      {
-        // Additional context definitions
-      },
     ],
     id: new URL("/outbox.json", baseUrl).toString(),
     type: "OrderedCollection",
     totalItems: activities.length,
     orderedItems: await Promise.all(
       activities.map(async (activity) => {
-        // Serialize the entire activity object
-        const serializedActivity = serializeActivity(activity);
-
-        return serializedActivity;
+        const object = await activity.getObject();
+        console.log("🚀 ~ activities.map ~ object:", {...object})
+        const fullObject = {
+          id: object?.id?.toString(),
+          type: object?.typeId?.toString(),
+          content: object?.content,
+          published: object?.published?.toString(),
+          url: object?.url?.toString(),
+          to: object?.to
+            ? Array.isArray(object.to)
+              ? object.to.map((to: URL) => to.toString())
+              : [object.to.toString()]
+            : [],
+          tags: (object?.tags ?? []).map((tag: any) => ({
+            type: tag.typeId?.toString(), // e.g., "Hashtag"
+            href: tag.href?.toString(),   // e.g., "https://social.tchncs.de/tags/foss"
+            name: tag.name                // e.g., "#foss"
+          }))
+          // Add other fields from the `Note` object as needed
+        };
+        console.log("🚀 ~ activities.map ~ fullObject:", fullObject)
+        
+        return {
+          id: activity.id?.toString(),
+          type: "OrderedCollection",
+          actor: activity.actorId?.toString(),
+          published: activity.published?.toString(),
+          to: activity.toIds,
+          cc: activity.ccIds,
+          object: fullObject,
+        };
       })
     ),
   };
 
   return outbox;
 }
-
-
 
 // Account Exporter class to handle data loading and serialization
 export class AccountExporter {
