@@ -1,4 +1,3 @@
-import { type Actor, lookupObject } from "@fedify/fedify";
 import { exportActorProfile } from "@interop/wallet-export-ts";
 import { eq } from "drizzle-orm";
 import type { Context } from "hono";
@@ -6,8 +5,11 @@ import db from "../db";
 import * as schema from "../schema";
 import { serializeAccount } from "./account";
 import { serializeList } from "./list";
-import { generateOutbox } from "./outbox";
 import { getPostRelations } from "./status";
+import { Activity, lookupObject } from "@fedify/fedify";
+import { iterateCollection } from "../federation/collection";
+import { generateOutbox } from "./outbox";
+
 
 const homeUrl = process.env["HOME_URL"] || "http://localhost:3000";
 
@@ -113,13 +115,13 @@ export class AccountExporter {
       if (!account) return c.json({ error: "Actor not found" }, 404);
 
       const postsData = await this.loadPosts();
-      console.log("🚀 ~ AccountExporter ~ exportData ~ postsData:", postsData);
+      console.log("🚀 ~ AccountExporter ~ exportData ~ postsData:", postsData)
+        
+const actor = await lookupObject(account.iri);
 
-      const actor = (await lookupObject(account.iri)) as Actor;
+const outbox = await generateOutbox(actor, new URL(homeUrl));
 
-      const outbox = await generateOutbox(actor, new URL(homeUrl));
-
-      console.log("🚀 ~ AccountExporter ~ exportData ~ outbox:", outbox);
+    console.log("🚀 ~ AccountExporter ~ exportData ~ outbox:", outbox)
 
       const lists = await this.loadLists();
       const serializedLists = lists.map((list) => serializeList(list));

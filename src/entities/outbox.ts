@@ -1,26 +1,21 @@
-import {
-  Activity,
-  type Actor,
-  type Object as FedifyObject,
-} from "@fedify/fedify";
+import  { Activity } from "@fedify/fedify";
 import { iterateCollection } from "../federation/collection";
 
+
 // Helper to get tags as an array
-async function getTagsAsArray(
-  object: FedifyObject,
-): Promise<Array<{ type: string; href: string; name: string }>> {
+async function getTagsAsArray(object: any): Promise<Array<{ type: string; href: string; name: string }>> {
   const tags = [];
-  for await (const tag of object.getTags() as any) {
+  for await (const tag of object.getTags()) {
     tags.push({
-      type: tag.id?.toString(),
-      href: tag.href?.toString(),
-      name: tag.name,
+      type: tag.typeId?.toString(), // e.g., "Hashtag"
+      href: tag.href?.toString(),   // e.g., "https://social.tchncs.de/tags/foss"
+      name: tag.name                // e.g., "#foss"
     });
   }
   return tags;
 }
 
-async function fetchOutbox(actor: Actor) {
+async function fetchOutbox(actor: any) {
   const outbox = await actor.getOutbox();
   console.log("🚀 ~ fetchOutbox ~ outbox:", outbox);
   if (!outbox) return null;
@@ -36,7 +31,7 @@ async function fetchOutbox(actor: Actor) {
   return activities;
 }
 
-function safeToString(value: unknown): string | undefined {
+function safeToString(value: any): string | undefined {
   return value?.toString();
 }
 
@@ -50,7 +45,7 @@ function cleanObject(obj: Record<string, any>): Record<string, any> {
   return cleaned;
 }
 
-async function generateOutbox(actor: Actor, baseUrl: string | URL) {
+async function generateOutbox(actor: any, baseUrl: string | URL) {
   const activities = await fetchOutbox(actor);
   if (!activities) return null;
 
@@ -74,8 +69,8 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
           return null; // Skip if object is null
         }
 
-        const to = object.toIds;
-        const cc = object.ccIds;
+        const to =  object.toIds;
+        const cc = object.ccIds
 
         const tags = await getTagsAsArray(object);
         console.log("🚀 ~ Processed tags:", tags);
@@ -100,11 +95,13 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
           cc: activity.ccIds,
           object: fullObject,
         });
-      }),
+      })
     ).then((items) => items.filter(Boolean)), // Remove null entries
   };
 
   return outbox;
 }
 
-export { generateOutbox };
+export {
+  generateOutbox
+}

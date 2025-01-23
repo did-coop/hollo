@@ -58,7 +58,7 @@ interface Post {
   published?: Date | null;
   updated: Date;
   media?: Array<{ id: string; url: string; contentType: string }> | null;
-}
+};
 
 // Define an interface for FollowersData
 interface Follower {
