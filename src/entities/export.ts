@@ -107,16 +107,15 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     orderedItems: await Promise.all(
       activities.map(async (activity) => {
         const object = await activity.getObject();
-        console.log("🚀 ~ activities.map ~ object:", object)
 
         return {
           id: activity.id?.toString(),
-          type: "OrderedCollection",
+          type: activity.typeId?.toString(),
           actor: activity.actorId?.toString(),
           published: activity.published?.toString(),
-          to: activity.toIds,
-          cc: activity.ccIds,
-          object: object,
+          to: activity.to?.map((to: URL) => to.toString()) || [],
+          cc: activity.cc?.map((cc: URL) => cc.toString()) || [],
+          object: object?.id?.toString(),
         };
       })
     ),
