@@ -17,29 +17,10 @@ async function getTagsAsArray(object: any): Promise<Array<{ type: string; href: 
 
 // Helper to get to as an array
 async function getToAsArray(object: any): Promise<string[]> {
-  console.log("🚀 ~ getToAsArray ~ object:", object);
-
-  if (!object?.getTos) {
-    console.log("🚀 ~ getToAsArray ~ object.getTos is missing or null");
-    return [];
-  }
-
   const to = [];
   for await (const item of object.getTos()) {
-    console.log("🚀 ~ getToAsArray ~ item:", item);
-
-    if (!item?.id) {
-      console.log("🚀 ~ getToAsArray ~ item.id is missing or null");
-      continue;
-    }
-
-    const id = safeToString(item.id);
-    if (id) {
-      to.push(id);
-    }
+    to.push(item.id.toString());
   }
-
-  console.log("🚀 ~ getToAsArray ~ to:", to);
   return to;
 }
 
@@ -144,43 +125,29 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     totalItems: activities.length,
     orderedItems: await Promise.all(
       activities.map(async (activity) => {
-        console.log("🚀 ~ Processing activity:", activity);
-
         const object = await activity.getObject();
-        console.log("🚀 ~ Retrieved object:", object);
-
-        if (!object) {
-          console.log("🚀 ~ Object is null, skipping activity");
-          return null; // Skip if object is null
-        }
+        if (!object) return null; // Skip if object is null
 
         // Handle `to` field
         const to = await getToAsArray(object);
-        console.log("🚀 ~ Processed to:", to);
 
         // Handle `cc` field
         const cc = await getCcAsArray(object);
-        console.log("🚀 ~ Processed cc:", cc);
 
         // Handle `tags` field
         const tags = await getTagsAsArray(object);
-        console.log("🚀 ~ Processed tags:", tags);
 
         // Handle `replies` field
-        // const replies = await getRepliesAsArray(object);
-        // console.log("🚀 ~ Processed replies:", replies);
+        const replies = await getRepliesAsArray(object);
 
-        // // Handle `shares` field
-        // const shares = await getSharesAsArray(object);
-        // console.log("🚀 ~ Processed shares:", shares);
+        // Handle `shares` field
+        const shares = await getSharesAsArray(object);
 
-        // // Handle `likes` field
-        // const likes = await getLikesAsArray(object);
-        // console.log("🚀 ~ Processed likes:", likes);
+        // Handle `likes` field
+        const likes = await getLikesAsArray(object);
 
-        // // Handle `attachments` field
-        // const attachments = await getAttachmentsAsArray(object);
-        // console.log("🚀 ~ Processed attachments:", attachments);
+        // Handle `attachments` field
+        const attachments = await getAttachmentsAsArray(object);
 
         // Create the full object
         const fullObject = cleanObject({
@@ -192,10 +159,10 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
           to: to.length > 0 ? to : undefined,
           cc: cc.length > 0 ? cc : undefined,
           tags: tags.length > 0 ? tags : undefined,
-          // replies: replies.length > 0 ? replies : undefined,
-          // shares: shares.length > 0 ? shares : undefined,
-          // likes: likes.length > 0 ? likes : undefined,
-          // attachments: attachments.length > 0 ? attachments : undefined,
+          replies: replies.length > 0 ? replies : undefined,
+          shares: shares.length > 0 ? shares : undefined,
+          likes: likes.length > 0 ? likes : undefined,
+          attachments: attachments.length > 0 ? attachments : undefined,
         });
 
         return cleanObject({
