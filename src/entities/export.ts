@@ -102,17 +102,22 @@ async function generateOutbox(actor: any, baseUrl: string | URL) {
     id: new URL("/outbox.json", baseUrl).toString(),
     type: "OrderedCollection",
     totalItems: activities.length,
-    orderedItems:
-      activities.map( (activity) => {
+    orderedItems: await Promise.all(
+      activities.map(async (activity) => {
+        // Fetch the full object associated with the activity
+        const object = await activity.getObject();
+
         return {
           id: activity.id?.toString(),
           type: activity.toId?.toString(), // Use `activity.type` instead of `activity.typeId`
           actor: activity.actorId?.toString(),
           published: activity.published?.toString(),
-          to: activity?.toIds?.map((to: URL) => to.toString()), // Use `object.to`
-          cc: activity?.ccIds?.map((cc: URL) => cc.toString()), // Use `object.cc`
+          to: object?.toIds?.map((to: URL) => to.toString()), // Use `object.to`
+          cc: object?.ccIds?.map((cc: URL) => cc.toString()), // Use `object.cc`
+          object: object?.id?.toString(), // Use `object.id`
         };
       })
+    ),
   };
 
   return outbox;
