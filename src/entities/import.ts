@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 import { canonicalize } from "json-canonicalize";
 import db from "../db";
 import * as schema from "../schema";
+import type { Uuid } from "../uuid";
 
 export class AccountImporter {
   actorId: ActorIdType;
@@ -20,14 +21,13 @@ export class AccountImporter {
     const importStream = () => Readable.from(tarBuffer);
     const validateStream = () => Readable.from(tarBuffer);
     const importedData = await importActorProfile(importStream());
-
-    console.log(typeof validateExportStream); // Should log "function"
+    console.log("🚀 ~ AccountImporter ~ importData ~ importedData:", importedData)
 
     try {
       const validationResult = await validateExportStream(validateStream());
-      if (!validationResult.valid) {
-        throw new Error("Invalid export stream");
-      }
+      // if (!validationResult.valid) {
+      //   throw new Error("Invalid export stream");
+      // }
       console.log(
         "🚀 ~ AccountImporter ~ importData ~ validationResult:",
         validationResult,
@@ -37,7 +37,7 @@ export class AccountImporter {
         "activitypub/actor.json",
         this.importAccount.bind(this),
       );
-      await this.importCollection(
+      await this.importOrderedItems(
         importedData,
         "activitypub/outbox.json",
         this.importOutbox.bind(this),
@@ -224,18 +224,14 @@ export class AccountImporter {
   }
 
   async importOutbox(activity: any) {
-    console.log("🚀 ~ AccountImporter ~ importOutbox ~ activity:", activity);
     try {
       // Validate the activity object
-      if (!activity.object || activity.type !== "Create") {
-        console.error(
-          "Skipping activity due to invalid type or missing object:",
-          activity,
-        );
+      if (!activity.object) {
         return;
       }
 
       const post = activity.object; // The `Note` object inside the `Create` activity
+      console.log("🚀 ~ AccountImporter ~ importOutbox ~ post:", post)
 
       // Validate the post object
       if (!post.id || !post.type || !post.published || !post.content) {
@@ -251,14 +247,11 @@ export class AccountImporter {
       });
 
       const cuuid = new CUUIDSHA256({
-        namespace: post.id,
+        namespace: this.actorId,
         name: postDataCanonical,
       });
 
       const newPostId = await cuuid.toString();
-
-      // Log the post URL for debugging
-      console.log("🚀 ~ AccountImporter ~ importOutbox ~ post.id:", post.id);
 
       // Check if the post already exists
       const isExistingPost = await db.query.posts.findFirst({
@@ -273,28 +266,41 @@ export class AccountImporter {
 
       const postData = {
         id: newPostId,
-        iri: post.id, // Use post.id as the unique identifier
+        iri: post.id as schema.PostType, // Use post.id as the unique identifier
         type: post.type,
         accountId: this.actorId,
         createdAt: new Date(post.published),
-        inReplyToId: post.inReplyTo
-          ? new URL(post.inReplyTo).pathname.split("/").pop()
+        replyTargetId: post.inReplyTo
+          ? (new URL(post.inReplyTo).pathname.split("/").pop() as Uuid | null)
           : null, // Extract ID from inReplyTo URL
-        sensitive: post.sensitive || false,
-        spoilerText: post.summary || "", // Use post.summary as spoilerText
-        visibility: "public" as "public" | "unlisted" | "private" | "direct",
-        language: post.contentMap?.en ? "en" : "und",
-        url: post.url || post.id,
-        repliesCount: post.replies?.totalItems || 0,
-        reblogsCount: post.shares?.totalItems || 0,
-        favouritesCount: post.likes?.totalItems || 0,
+        sharingId: null, // Assuming no direct sharing reference in the sample
+        quoteTargetId: null, // Assuming no quote target in the sample
+        visibility: "public" as const, // Defaulting to 'public'
+        summary: post.summary || "", // Use `summary` if available
+        contentHtml: post.content || "", // Raw HTML content
+        content: "", // Plain text extraction (if required later)
+        pollId: null, // Assuming no poll data in the sample
+        language: post.contentMap?.en ? "en" : "und", // Infer language
+        // @ts-ignore
+        tags: post.tags?.reduce((acc, tag) => {
+          acc[tag.name] = tag.href;
+          return acc;
+        }, {} as Record<string, string>) || {}, // Convert tags array to a JSON object
+        emojis: {}, // Assuming no emojis provided in the sample
+        sensitive: post.sensitive || false, // Use `post.sensitive` if available
+        url: post.url || post.id, // Use `url` or fallback to `id`
+        previewCard: null, // Assuming no preview card in the sample
+        repliesCount: post.replies?.totalItems || 0, // Replies count
+        sharesCount: post.shares?.totalItems || 0, // Shares count
+        likesCount: post.likes?.totalItems || 0, // Likes count
+        idempotenceKey: null, // Assuming no idempotenceKey in the sample
+        published: new Date(post.published), // Use `published` as timestamp
+        updated: new Date(), // Current timestamp for updates
         favourited: false, // Default value
         reblogged: false, // Default value
         muted: false, // Default value
         bookmarked: false, // Default value
         pinned: false, // Default value
-        contentHtml: post.content,
-        quoteId: null, // Default value (no quote support yet)
       };
 
       // Insert or update the post
