@@ -50,7 +50,6 @@ interface Post {
   emojis: Record<string, string>;
   sensitive: boolean;
   url?: string | null;
-  previewCard?: any | null;
   repliesCount: number;
   sharesCount: number;
   likesCount: number;

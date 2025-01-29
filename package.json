@@ -8,6 +8,7 @@
     "prod": "pnpm run migrate && tsx --env-file-if-exists=.env --dns-result-order=ipv6first src/index.tsx",
     "dev": "pnpm run migrate && tsx watch --env-file-if-exists=.env --dns-result-order=ipv6first src/index.tsx",
     "check": "tsc && biome check .",
+    "fix": "biome check . --fix && biome format .",
     "migrate": "drizzle-kit migrate",
     "migrate:generate": "drizzle-kit generate",
     "rebuild-timelines": "tsx --env-file-if-exists=.env scripts/rebuild-timelines.ts"

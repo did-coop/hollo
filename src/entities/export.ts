@@ -9,6 +9,7 @@ import { serializeList } from "./list";
 import { generateOutbox } from "./outbox";
 import { getPostRelations } from "./status";
 
+// biome-ignore lint/complexity/useLiteralKeys: tsc complains about this (TS4111)
 const homeUrl = process.env["HOME_URL"] || "http://localhost:3000";
 
 // Account Exporter class to handle data loading and serialization
@@ -171,6 +172,7 @@ export class AccountExporter {
 
       const exportTarballStream = finalize();
 
+      // @ts-ignore
       return c.body(exportTarballStream, 200, {
         "Content-Type": "application/x-tar",
         "Content-Disposition": `attachment; filename="account_export_${encodeURIComponent(

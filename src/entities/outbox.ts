@@ -10,10 +10,14 @@ async function getTagsAsArray(
   object: FedifyObject,
 ): Promise<Array<{ type: string; href: string; name: string }>> {
   const tags = [];
-  for await (const tag of object.getTags() as any) {
+  for await (const tag of object.getTags() as AsyncGenerator<{
+    id: URL | null;
+    href: URL | null;
+    name: string;
+  }>) {
     tags.push({
-      type: tag.id?.toString(),
-      href: tag.href?.toString(),
+      type: tag.id?.toString() || "",
+      href: tag.href?.toString() || "",
       name: tag.name,
     });
   }
@@ -40,8 +44,8 @@ function safeToString(value: unknown): string | undefined {
   return value?.toString();
 }
 
-function cleanObject(obj: Record<string, any>): Record<string, any> {
-  const cleaned: Record<string, any> = {};
+function cleanObject(obj: Record<string, unknown>) {
+  const cleaned: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (value !== null && value !== undefined) {
       cleaned[key] = value;
@@ -75,13 +79,11 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
         }
 
         const replies = await object.getReplies();
-        console.log("🚀 ~ activities.map ~ replies:", replies)
+        console.log("🚀 ~ activities.map ~ replies:", replies);
         const likes = await object.getLikes();
-        console.log("🚀 ~ activities.map ~ likes:", likes)
+        console.log("🚀 ~ activities.map ~ likes:", likes);
         const shares = await object.getShares();
-        console.log("🚀 ~ activities.map ~ shares:", shares
-        
-        )
+        console.log("🚀 ~ activities.map ~ shares:", shares);
         const to = object.toIds;
         const cc = object.ccIds;
 
@@ -99,17 +101,17 @@ async function generateOutbox(actor: Actor, baseUrl: string | URL) {
           replies: {
             id: replies?.id,
             totalITems: replies?.totalItems,
-            items: replies?.getItems
+            items: replies?.getItems,
           },
           likes: {
             id: likes?.id,
             totalItems: likes?.totalItems,
-            items: likes?.getItems
+            items: likes?.getItems,
           },
           shares: {
             id: shares?.id,
             totalItems: shares?.totalItems,
-            items: shares?.getItems
+            items: shares?.getItems,
           },
         });
 

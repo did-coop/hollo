@@ -21,7 +21,10 @@ export class AccountImporter {
     const importStream = () => Readable.from(tarBuffer);
     const validateStream = () => Readable.from(tarBuffer);
     const importedData = await importActorProfile(importStream());
-    console.log("🚀 ~ AccountImporter ~ importData ~ importedData:", importedData)
+    console.log(
+      "🚀 ~ AccountImporter ~ importData ~ importedData:",
+      importedData,
+    );
 
     try {
       const validationResult = await validateExportStream(validateStream());
@@ -223,6 +226,7 @@ export class AccountImporter {
     );
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: ...
   async importOutbox(activity: any) {
     try {
       // Validate the activity object
@@ -231,7 +235,7 @@ export class AccountImporter {
       }
 
       const post = activity.object; // The `Note` object inside the `Create` activity
-      console.log("🚀 ~ AccountImporter ~ importOutbox ~ post:", post)
+      console.log("🚀 ~ AccountImporter ~ importOutbox ~ post:", post);
 
       // Validate the post object
       if (!post.id || !post.type || !post.published || !post.content) {
@@ -282,10 +286,22 @@ export class AccountImporter {
         pollId: null, // Assuming no poll data in the sample
         language: post.contentMap?.en ? "en" : "und", // Infer language
         // @ts-ignore
-        tags: post.tags?.reduce((acc, tag) => {
-          acc[tag.name] = tag.href;
-          return acc;
-        }, {} as Record<string, string>) || {}, // Convert tags array to a JSON object
+        tags:
+          post.tags?.reduce(
+            (
+              acc: {
+                [key: string]: string;
+              },
+              tag: {
+                name: string;
+                href: string;
+              },
+            ) => {
+              acc[tag.name] = tag.href;
+              return acc;
+            },
+            {} as Record<string, string>,
+          ) || {}, // Convert tags array to a JSON object
         emojis: {}, // Assuming no emojis provided in the sample
         sensitive: post.sensitive || false, // Use `post.sensitive` if available
         url: post.url || post.id, // Use `url` or fallback to `id`
