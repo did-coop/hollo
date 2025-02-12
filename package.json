@@ -22,7 +22,7 @@
     "@hexagon/base64": "^2.0.4",
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.2.2",
-    "@interop/wallet-export-ts": "^0.1.6",
+    "@interop/wallet-export-ts": "https://github.com/interop-alliance/wallet-export-ts",
     "@js-temporal/polyfill": "^0.4.4",
     "@logtape/logtape": "^0.8.0",
     "@logtape/sentry": "^0.1.0",

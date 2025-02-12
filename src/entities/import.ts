@@ -18,9 +18,12 @@ export class AccountImporter {
   }
 
   async importData(tarBuffer: Buffer) {
+    console.log("🚀 ~ AccountImporter ~ importData ~ tarBuffer:");
     const importStream = () => Readable.from(tarBuffer);
     const validateStream = () => Readable.from(tarBuffer);
+    console.log(1)
     const importedData = await importActorProfile(importStream());
+    console.log(2)
     console.log(
       "🚀 ~ AccountImporter ~ importData ~ importedData:",
       importedData,
