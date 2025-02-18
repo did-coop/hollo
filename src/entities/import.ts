@@ -1,11 +1,11 @@
-import { Readable } from 'node:stream';
-import { importActorProfile } from '@interop/wallet-export-ts';
-import CUUIDSHA256 from 'cuuid-sha-256';
-import { and, eq } from 'drizzle-orm';
-import { canonicalize } from 'json-canonicalize';
-import db from '../db';
-import * as schema from '../schema';
-import type { Uuid } from '../uuid';
+import { Readable } from "node:stream";
+import { importActorProfile } from "@interop/wallet-export-ts";
+import CUUIDSHA256 from "cuuid-sha-256";
+import { and, eq } from "drizzle-orm";
+import { canonicalize } from "json-canonicalize";
+import db from "../db";
+import * as schema from "../schema";
+import type { Uuid } from "../uuid";
 
 export class AccountImporter {
   actorId: ActorIdType;
@@ -26,13 +26,13 @@ export class AccountImporter {
       // }
       await this.importIfExists(
         importedData,
-        'activitypub/actor.json',
-        this.importAccount.bind(this)
+        "activitypub/actor.json",
+        this.importAccount.bind(this),
       );
       await this.importOrderedItems(
         importedData,
-        'activitypub/outbox.json',
-        this.importOutbox.bind(this)
+        "activitypub/outbox.json",
+        this.importOutbox.bind(this),
       );
       // await this.importOrderedItems(
       //   importedData,
@@ -70,7 +70,7 @@ export class AccountImporter {
       //   this.importList.bind(this),
       // );
     } catch (error) {
-      console.error('Error importing account profile:', { error });
+      console.error("Error importing account profile:", { error });
       throw error;
     }
   }
@@ -78,7 +78,7 @@ export class AccountImporter {
   async importIfExists<T>(
     data: Record<string, unknown>,
     key: string,
-    handler: (item: T) => Promise<void>
+    handler: (item: T) => Promise<void>,
   ) {
     try {
       await handler(data[key] as T);
@@ -91,7 +91,7 @@ export class AccountImporter {
   async importCollection<T>(
     data: Record<string, unknown>,
     key: string,
-    handler: (item: T) => Promise<void>
+    handler: (item: T) => Promise<void>,
   ) {
     if (Array.isArray(data[key])) {
       await Promise.all((data[key] as T[]).map(handler));
@@ -101,17 +101,17 @@ export class AccountImporter {
   async importOrderedItems<T>(
     data: Record<string, unknown>,
     key: string,
-    handler: (item: T) => Promise<void>
+    handler: (item: T) => Promise<void>,
   ) {
     if (
       key in data &&
-      typeof data[key] === 'object' &&
+      typeof data[key] === "object" &&
       data[key] !== null &&
-      'orderedItems' in (data[key] as Record<string, unknown>)
+      "orderedItems" in (data[key] as Record<string, unknown>)
     ) {
       const orderedItems = (data[key] as { orderedItems: T[] }).orderedItems;
       if (!Array.isArray(orderedItems)) {
-        throw new Error('orderedItems is not an array');
+        throw new Error("orderedItems is not an array");
       }
       if (orderedItems.length === 0) {
         return;
@@ -135,8 +135,8 @@ export class AccountImporter {
 
     const newAccountId = await cuuid.toString();
     console.log(
-      '🚀 ~ AccountImporter ~ importAccount ~ newAccountId:',
-      newAccountId
+      "🚀 ~ AccountImporter ~ importAccount ~ newAccountId:",
+      newAccountId,
     );
 
     // Check if the new account ID already exists
@@ -150,7 +150,7 @@ export class AccountImporter {
 
     const instanceHost = new URL(profileData.url).hostname;
 
-    await db.transaction(async tx => {
+    await db.transaction(async (tx) => {
       const existingInstance = await tx.query.instances.findFirst({
         where: eq(schema.instances.host, instanceHost),
       });
@@ -162,7 +162,7 @@ export class AccountImporter {
         .select()
         .from(schema.accountOwners)
         .where(eq(schema.accountOwners.id, this.actorId))
-        .then(rows => rows[0]);
+        .then((rows) => rows[0]);
 
       if (!existingOwner) {
         throw new Error(`Account owner not found: ${this.actorId}`);
@@ -172,10 +172,10 @@ export class AccountImporter {
         .select()
         .from(schema.accounts)
         .where(eq(schema.accounts.id, this.actorId))
-        .then(rows => rows[0]);
+        .then((rows) => rows[0]);
       console.log(
-        '🚀 ~ AccountImporter ~ awaitdb.transaction ~ oldAccount:',
-        oldAccount
+        "🚀 ~ AccountImporter ~ awaitdb.transaction ~ oldAccount:",
+        oldAccount,
       );
 
       await tx
@@ -210,8 +210,8 @@ export class AccountImporter {
     // Update the actorId to the new account ID
     this.actorId = newAccountId;
     console.log(
-      '🚀 ~ AccountImporter ~ importAccount ~ this.actorId: [1]',
-      this.actorId
+      "🚀 ~ AccountImporter ~ importAccount ~ this.actorId: [1]",
+      this.actorId,
     );
   }
 
@@ -224,11 +224,11 @@ export class AccountImporter {
       }
 
       const post = activity.object; // The `Note` object inside the `Create` activity
-      console.log('🚀 ~ AccountImporter ~ importOutbox ~ post:', post);
+      console.log("🚀 ~ AccountImporter ~ importOutbox ~ post:", post);
 
       // Validate the post object
       if (!post.id || !post.type || !post.published || !post.content) {
-        console.error('Skipping post due to missing required fields:', post);
+        console.error("Skipping post due to missing required fields:", post);
         return;
       }
 
@@ -253,7 +253,7 @@ export class AccountImporter {
 
       if (isExistingPost) {
         console.warn(
-          `Post with ID ${post.id} already exists, updating instead of skipping`
+          `Post with ID ${post.id} already exists, updating instead of skipping`,
         );
       }
 
@@ -264,16 +264,16 @@ export class AccountImporter {
         accountId: this.actorId,
         createdAt: new Date(post.published),
         replyTargetId: post.inReplyTo
-          ? (new URL(post.inReplyTo).pathname.split('/').pop() as Uuid | null)
+          ? (new URL(post.inReplyTo).pathname.split("/").pop() as Uuid | null)
           : null, // Extract ID from inReplyTo URL
         sharingId: null, // Assuming no direct sharing reference in the sample
         quoteTargetId: null, // Assuming no quote target in the sample
-        visibility: 'public' as const, // Defaulting to 'public'
-        summary: post.summary || '', // Use `summary` if available
-        contentHtml: post.content || '', // Raw HTML content
-        content: '', // Plain text extraction (if required later)
+        visibility: "public" as const, // Defaulting to 'public'
+        summary: post.summary || "", // Use `summary` if available
+        contentHtml: post.content || "", // Raw HTML content
+        content: "", // Plain text extraction (if required later)
         pollId: null, // Assuming no poll data in the sample
-        language: post.contentMap?.en ? 'en' : 'und', // Infer language
+        language: post.contentMap?.en ? "en" : "und", // Infer language
         // @ts-ignore
         tags:
           post.tags?.reduce(
@@ -284,12 +284,12 @@ export class AccountImporter {
               tag: {
                 name: string;
                 href: string;
-              }
+              },
             ) => {
               acc[tag.name] = tag.href;
               return acc;
             },
-            {} as Record<string, string>
+            {} as Record<string, string>,
           ) || {}, // Convert tags array to a JSON object
         emojis: {}, // Assuming no emojis provided in the sample
         sensitive: post.sensitive || false, // Use `post.sensitive` if available
@@ -321,11 +321,11 @@ export class AccountImporter {
         });
 
       console.log(
-        '🚀 ~ AccountImporter ~ importOutbox ~ post imported/updated successfully:',
-        newPostId
+        "🚀 ~ AccountImporter ~ importOutbox ~ post imported/updated successfully:",
+        newPostId,
       );
     } catch (error) {
-      console.error('Error importing post:', { error });
+      console.error("Error importing post:", { error });
       throw error; // Re-throw the error to trigger transaction rollback
     }
   }
@@ -334,7 +334,7 @@ export class AccountImporter {
     const existingBookmark = await db.query.bookmarks.findFirst({
       where: and(
         eq(schema.bookmarks.accountOwnerId, this.actorId),
-        eq(schema.bookmarks.postId, bookmark.postId)
+        eq(schema.bookmarks.postId, bookmark.postId),
       ),
     });
 
@@ -349,8 +349,8 @@ export class AccountImporter {
         .where(
           and(
             eq(schema.bookmarks.accountOwnerId, this.actorId),
-            eq(schema.bookmarks.postId, bookmark.postId)
-          )
+            eq(schema.bookmarks.postId, bookmark.postId),
+          ),
         );
     } else {
       await db.insert(schema.bookmarks).values({
@@ -365,7 +365,7 @@ export class AccountImporter {
       const existingFollow = await db.query.follows.findFirst({
         where: and(
           eq(schema.follows.followerId, this.actorId),
-          eq(schema.follows.followingId, follower.followingId)
+          eq(schema.follows.followingId, follower.followingId),
         ),
       });
 
@@ -387,8 +387,8 @@ export class AccountImporter {
           .where(
             and(
               eq(schema.follows.followerId, this.actorId),
-              eq(schema.follows.followingId, follower.followingId)
-            )
+              eq(schema.follows.followingId, follower.followingId),
+            ),
           );
       } else {
         await db.insert(schema.follows).values(followData);
@@ -396,7 +396,7 @@ export class AccountImporter {
     } catch (error) {
       console.error(
         `Failed to import follow relationship for follower ID: ${this.actorId} following ID: ${follower.followingId}`,
-        error
+        error,
       );
     }
   }
@@ -406,7 +406,7 @@ export class AccountImporter {
       const existingFollow = await db.query.follows.findFirst({
         where: and(
           eq(schema.follows.followerId, following.followerId),
-          eq(schema.follows.followingId, this.actorId)
+          eq(schema.follows.followingId, this.actorId),
         ),
       });
 
@@ -428,8 +428,8 @@ export class AccountImporter {
           .where(
             and(
               eq(schema.follows.followerId, following.followerId),
-              eq(schema.follows.followingId, this.actorId)
-            )
+              eq(schema.follows.followingId, this.actorId),
+            ),
           );
       } else {
         await db.insert(schema.follows).values(followData);
@@ -437,7 +437,7 @@ export class AccountImporter {
     } catch (error) {
       console.error(
         `Failed to import follow relationship for follower ID: ${following.followerId} following ID: ${this.actorId}`,
-        error
+        error,
       );
       throw error;
     }
@@ -469,7 +469,7 @@ export class AccountImporter {
     const existingLike = await db.query.likes.findFirst({
       where: and(
         eq(schema.likes.accountId, this.actorId),
-        eq(schema.likes.postId, like.postId)
+        eq(schema.likes.postId, like.postId),
       ),
     });
 
@@ -486,8 +486,8 @@ export class AccountImporter {
         .where(
           and(
             eq(schema.likes.accountId, this.actorId),
-            eq(schema.likes.postId, like.postId)
-          )
+            eq(schema.likes.postId, like.postId),
+          ),
         );
     } else {
       await db.insert(schema.likes).values(likeData);
@@ -498,7 +498,7 @@ export class AccountImporter {
     const existingBlock = await db.query.blocks.findFirst({
       where: and(
         eq(schema.blocks.accountId, this.actorId),
-        eq(schema.blocks.blockedAccountId, block.blockedAccountId)
+        eq(schema.blocks.blockedAccountId, block.blockedAccountId),
       ),
     });
 
@@ -515,8 +515,8 @@ export class AccountImporter {
         .where(
           and(
             eq(schema.blocks.accountId, this.actorId),
-            eq(schema.blocks.blockedAccountId, block.blockedAccountId)
-          )
+            eq(schema.blocks.blockedAccountId, block.blockedAccountId),
+          ),
         );
     } else {
       await db.insert(schema.blocks).values(blockData);
@@ -527,7 +527,7 @@ export class AccountImporter {
     const existingMute = await db.query.mutes.findFirst({
       where: and(
         eq(schema.mutes.accountId, this.actorId),
-        eq(schema.mutes.mutedAccountId, mute.mutedAccountId)
+        eq(schema.mutes.mutedAccountId, mute.mutedAccountId),
       ),
     });
 
@@ -547,8 +547,8 @@ export class AccountImporter {
         .where(
           and(
             eq(schema.mutes.accountId, this.actorId),
-            eq(schema.mutes.mutedAccountId, mute.mutedAccountId)
-          )
+            eq(schema.mutes.mutedAccountId, mute.mutedAccountId),
+          ),
         );
     } else {
       await db.insert(schema.mutes).values(muteData);
